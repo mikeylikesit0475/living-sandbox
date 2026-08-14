@@ -243,6 +243,17 @@
         2220,
         700
       ]
+    },
+    {
+      "parameters": {},
+      "id": "wf1-exec-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        180
+      ]
     }
   ],
   "connections": {
@@ -409,6 +420,17 @@
           }
         ]
       ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Init state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "meta": {
@@ -423,5 +445,5 @@
     }
   ],
   "versionId": "wf1-v4-reuse",
-  "active": true
+  "active": false
 }
