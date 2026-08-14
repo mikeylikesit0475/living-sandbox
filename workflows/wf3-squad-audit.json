@@ -1,0 +1,116 @@
+{
+  "name": "wf3-squad-audit — Security + Critic (WF-3 Sprint 3)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "wf3-trigger",
+      "name": "Execute Sub-workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-3 guard — validate state has candidate\nconst state = $input.first().json;\nif (!state || state.schema_version !== 1) throw new Error(`WF-3: invalid schema_version ${JSON.stringify(state?.schema_version)}`);\nif (!state.candidate || !state.candidate.code) throw new Error('WF-3: candidate.code missing');\nreturn [{ json: state }];\n"
+      },
+      "id": "wf3-guard",
+      "name": "Guard: validate candidate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-3 Security prompt builder\nconst state = $input.first().json;\nlet system = '';\ntry { system = require('fs').readFileSync('/prompts/audit_security_system.md','utf8'); } catch(e) { system = 'You are the Security Agent. Output JSON {security_pass, objections}.'; }\nconst prompt = system + \"\\n\\nCandidate code:\\n```python\\n\" + state.candidate.code + \"\\n```\\n\\nGoal: \" + state.goal + \"\\n\\nReturn ONLY JSON.\";\nreturn [{ json: { state, security_prompt: prompt } }];\n"
+      },
+      "id": "wf3-sec-prompt",
+      "name": "Build Security prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.OLLAMA_URL || 'http://ollama:11434' }}/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "={{ $env.SQUAD_MODEL || 'qwen2.5:7b' }}" },
+            { "name": "prompt", "value": "={{ $json.security_prompt }}" },
+            { "name": "stream", "value": false },
+            { "name": "format", "value": "json" }
+          ]
+        },
+        "options": { "bodyContentType": "json", "timeout": 90000 }
+      },
+      "id": "wf3-sec-llm",
+      "name": "Ollama: Security",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-3 parse Security JSON\nconst llm = $input.first().json;\nconst prev = $('Build Security prompt').first().json;\nlet raw = llm.response || JSON.stringify(llm);\nlet cleaned = (raw||'').trim();\nif (cleaned.startsWith('```')) { const lines = cleaned.split('\\n'); if (lines[0].startsWith('```')) lines.shift(); if (lines[lines.length-1].startsWith('```')) lines.pop(); cleaned = lines.join('\\n'); }\nlet parsed;\ntry {\n  const s = cleaned.indexOf('{'); const e = cleaned.lastIndexOf('}');\n  parsed = JSON.parse(cleaned.slice(s, e+1));\n} catch(e) { throw new Error(`Security parse failed: ${e.message} raw: ${cleaned.slice(0,500)}`); }\nconst state = JSON.parse(JSON.stringify(prev.state));\nstate.audit = state.audit || { security_pass: true, edge_case_pass: true, objections: [] };\nstate.audit.security_pass = !!parsed.security_pass;\nstate.audit.objections = (state.audit.objections||[]).concat(parsed.objections||[]);\n// stash security result for next step\nreturn [{ json: { state, security_raw: parsed } }];\n"
+      },
+      "id": "wf3-sec-parse",
+      "name": "Parse Security → state.audit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-3 Critic prompt builder\nconst prev = $input.first().json;\nconst state = prev.state;\nlet system = '';\ntry { system = require('fs').readFileSync('/prompts/audit_critic_system.md','utf8'); } catch(e) { system = 'You are the Critic. Output JSON {edge_case_pass, objections, proposed_inputs}.'; }\nconst prompt = system + \"\\n\\nCandidate code:\\n```python\\n\" + state.candidate.code + \"\\n```\\n\\nInput schema: \" + JSON.stringify(state.candidate.input_schema) + \"\\n\\nReturn ONLY JSON.\";\nreturn [{ json: { state, critic_prompt: prompt, security_raw: prev.security_raw } }];\n"
+      },
+      "id": "wf3-crit-prompt",
+      "name": "Build Critic prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.OLLAMA_URL || 'http://ollama:11434' }}/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "={{ $env.SQUAD_MODEL || 'qwen2.5:7b' }}" },
+            { "name": "prompt", "value": "={{ $json.critic_prompt }}" },
+            { "name": "stream", "value": false },
+            { "name": "format", "value": "json" }
+          ]
+        },
+        "options": { "bodyContentType": "json", "timeout": 90000 }
+      },
+      "id": "wf3-crit-llm",
+      "name": "Ollama: Critic",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-3 parse Critic JSON + run proposed inputs via WF-5 and set edge_case_pass\nconst llm = $input.first().json;\nconst prev = $('Build Critic prompt').first().json;\nlet raw = llm.response || JSON.stringify(llm);\nlet cleaned = (raw||'').trim();\nif (cleaned.startsWith('```')) { const lines = cleaned.split('\\n'); if (lines[0].startsWith('```')) lines.shift(); if (lines[lines.length-1].startsWith('```')) lines.pop(); cleaned = lines.join('\\n'); }\nlet parsed;\ntry {\n  const s = cleaned.indexOf('{'); const e = cleaned.lastIndexOf('}');\n  parsed = JSON.parse(cleaned.slice(s, e+1));\n} catch(e) { throw new Error(`Critic parse failed: ${e.message} raw: ${cleaned.slice(0,500)}`); }\nconst state = JSON.parse(JSON.stringify(prev.state));\nstate.audit = state.audit || { security_pass: true, edge_case_pass: true, objections: [] };\n// Merge critic verdict\nstate.audit.edge_case_pass = !!parsed.edge_case_pass;\nstate.audit.objections = (state.audit.objections||[]).concat(parsed.objections||[]);\n// Store proposed inputs for actual execution via WF-5 (done in next node or by Orchestrator)\nstate.audit.proposed_inputs = parsed.proposed_inputs || [];\nstate.audit.critic_raw = parsed;\nreturn [{ json: state }];\n"
+      },
+      "id": "wf3-crit-parse",
+      "name": "Parse Critic → state.audit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 500]
+    }
+  ],
+  "connections": {
+    "Execute Sub-workflow Trigger": { "main": [[{ "node": "Guard: validate candidate", "type": "main", "index": 0 }]] },
+    "Guard: validate candidate": { "main": [[{ "node": "Build Security prompt", "type": "main", "index": 0 }]] },
+    "Build Security prompt": { "main": [[{ "node": "Ollama: Security", "type": "main", "index": 0 }]] },
+    "Ollama: Security": { "main": [[{ "node": "Parse Security → state.audit", "type": "main", "index": 0 }]] },
+    "Parse Security → state.audit": { "main": [[{ "node": "Build Critic prompt", "type": "main", "index": 0 }]] },
+    "Build Critic prompt": { "main": [[{ "node": "Ollama: Critic", "type": "main", "index": 0 }]] },
+    "Ollama: Critic": { "main": [[{ "node": "Parse Critic → state.audit", "type": "main", "index": 0 }]] }
+  },
+  "meta": { "instanceId": "wf3-squad-audit" },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "wf3" }],
+  "versionId": "wf3-v1"
+}
