@@ -1,5 +1,5 @@
 {
-  "name": "wf5-sandbox-exec \u2014 ephemeral container execution (WF-5)",
+  "name": "wf5-sandbox-exec — ephemeral container execution (WF-5)",
   "nodes": [
     {
       "parameters": {
@@ -21,10 +21,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-5 guard \u2014 validate state.candidate and build sandbox payload\nconst state = $input.first().json;\n// state is the full state object per 02 \u00a73; we expect candidate.code + input\nif (!state || state.schema_version !== 1) {\n  throw new Error(`WF-5: invalid state.schema_version (expected 1) got ${JSON.stringify(state?.schema_version)}`);\n}\nconst candidate = state.candidate;\nif (!candidate || !candidate.code) {\n  throw new Error('WF-5: state.candidate.code missing');\n}\n// Input for the tool: state.goal or candidate.input or state.test input\n// For walking skeleton, the Orchestrator passes tool input in state.test.runs[0].input or state.goal\nconst toolInput = (state.test && state.test.runs && state.test.runs[0] && state.test.runs[0].input) || state.goal || '';\nreturn [{ json: {\n  code: candidate.code,\n  input: toolInput,\n  language: candidate.language || 'python',\n  timeout_s: 10,\n  memory_mb: 256,\n  _state: state\n}}];\n"
+        "jsCode": "// WF-5 guard — validate state.candidate and build sandbox payload\nconst state = $input.first().json;\nif (!state || state.schema_version !== 1) throw new Error('bad');\nconst candidate = state.candidate;\nif (!candidate || !candidate.code) throw new Error('no candidate');\nlet toolInput = state._toolInput || '';\nif (!toolInput) {\n  const g = state.goal || '';\n  const m = g.match(/'([^']{10,})'/);\n  if (m) toolInput = m[1];\n  else toolInput = g;\n}\nreturn [{ json: {\n  code: candidate.code,\n  input: toolInput,\n  language: candidate.language || 'python',\n  timeout_s: 10,\n  memory_mb: 256,\n  _state: state\n}}];"
       },
       "id": "wf5-guard",
-      "name": "Guard: validate state \u2192 sandbox payload",
+      "name": "Guard: validate state → sandbox payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -68,7 +68,7 @@
         "method": "POST"
       },
       "id": "wf5-http",
-      "name": "HTTP \u2192 sandbox-runner /execute",
+      "name": "HTTP → sandbox-runner /execute",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
@@ -79,10 +79,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-5 normalize \u2014 map sandbox response back into state.test\nconst sandbox = $input.first().json;\nconst prev = $('Guard: validate state \u2192 sandbox payload').first().json._state;\n// sandbox runner returns {stdout, stderr, exit_code, duration_ms, timed_out}\nconst passed = sandbox.exit_code === 0 && !sandbox.timed_out;\nconst run = {\n  input: $('Guard: validate state \u2192 sandbox payload').first().json.input,\n  stdout: sandbox.stdout || '',\n  stderr: sandbox.stderr || '',\n  exit_code: sandbox.exit_code ?? -1,\n  duration_ms: sandbox.duration_ms ?? 0\n};\n// thread back into state\nconst next = JSON.parse(JSON.stringify(prev));\nnext.test = next.test || { passed: false, runs: [] };\nnext.test.passed = passed;\nnext.test.runs = (next.test.runs || []).concat([run]);\n// also set outcome.final_answer for walking skeleton convenience\nif (passed) {\n  next.outcome = next.outcome || {};\n  next.outcome.final_answer = (sandbox.stdout || '').trim();\n  // keep status as deployed for now \u2014 WF-4/Orchestrator will set deployed/reused\n}\nreturn [{ json: next }];\n"
+        "jsCode": "// WF-5 normalize — map sandbox response back into state.test\nconst sandbox = $input.first().json;\nconst prev = $('Guard: validate state → sandbox payload').first().json._state;\n// sandbox runner returns {stdout, stderr, exit_code, duration_ms, timed_out}\nconst passed = sandbox.exit_code === 0 && !sandbox.timed_out;\nconst run = {\n  input: $('Guard: validate state → sandbox payload').first().json.input,\n  stdout: sandbox.stdout || '',\n  stderr: sandbox.stderr || '',\n  exit_code: sandbox.exit_code ?? -1,\n  duration_ms: sandbox.duration_ms ?? 0\n};\n// thread back into state\nconst next = JSON.parse(JSON.stringify(prev));\nnext.test = next.test || { passed: false, runs: [] };\nnext.test.passed = passed;\nnext.test.runs = (next.test.runs || []).concat([run]);\n// also set outcome.final_answer for walking skeleton convenience\nif (passed) {\n  next.outcome = next.outcome || {};\n  next.outcome.final_answer = (sandbox.stdout || '').trim();\n  // keep status as deployed for now — WF-4/Orchestrator will set deployed/reused\n}\nreturn [{ json: next }];\n"
       },
       "id": "wf5-normalize",
-      "name": "Normalize \u2192 state.test",
+      "name": "Normalize → state.test",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -97,29 +97,29 @@
       "main": [
         [
           {
-            "node": "Guard: validate state \u2192 sandbox payload",
+            "node": "Guard: validate state → sandbox payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Guard: validate state \u2192 sandbox payload": {
+    "Guard: validate state → sandbox payload": {
       "main": [
         [
           {
-            "node": "HTTP \u2192 sandbox-runner /execute",
+            "node": "HTTP → sandbox-runner /execute",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "HTTP \u2192 sandbox-runner /execute": {
+    "HTTP → sandbox-runner /execute": {
       "main": [
         [
           {
-            "node": "Normalize \u2192 state.test",
+            "node": "Normalize → state.test",
             "type": "main",
             "index": 0
           }
