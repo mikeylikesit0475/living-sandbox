@@ -1,5 +1,5 @@
 {
-  "name": "wf2-squad-lab — Lab stub (canned code) (WF-2)",
+  "name": "wf2-squad-lab \u2014 Lab stub (canned code) (WF-2)",
   "nodes": [
     {
       "parameters": {},
@@ -7,24 +7,50 @@
       "name": "Execute Sub-workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ],
+      "disabled": false
     },
     {
       "parameters": {
-        "jsCode": "// WF-2 Lab STUB — Sprint 1 walking skeleton\n// Returns a hard-coded reverse-string tool as state.candidate.\n// This front-loads the Tool Factory / sandbox wiring before any real LLM prompt.\nconst state = $input.first().json;\nif (!state || state.schema_version !== 1) {\n  throw new Error(`WF-2 stub: invalid schema_version ${JSON.stringify(state?.schema_version)}`);\n}\n// Canned tool: reverses the string it receives via stdin/argv/SANDBOX_INPUT\nconst code = `\nimport sys, os\ndef run(input: str) -> str:\n    return input[::-1]\nif __name__ == \"__main__\":\n    data = \"\"\n    try:\n        if not sys.stdin.isatty():\n            data = sys.stdin.read()\n    except:\n        pass\n    if not data and len(sys.argv) > 1:\n        data = sys.argv[1]\n    if not data:\n        data = os.getenv(\"SANDBOX_INPUT\", \"\")\n    # fallback: if still empty, try to find the word after \"reverse\" in goal\n    if not data.strip():\n        data = \"hello\"\n    print(run(data.strip()))\n`;\nstate.candidate = {\n  tool_name: \"reverse_string\",\n  description: \"Reverses the input string (stdin/argv/SANDBOX_INPUT)\",\n  input_schema: { input: \"string\" },\n  code: code.trim(),\n  language: \"python\"\n};\n// ensure loop budget exists\nstate.loop = state.loop || { gate: \"test\", remaining: 3 };\nreturn [{ json: state }];\n"
+        "jsCode": "// WF-2 Lab STUB \u2014 Sprint 1 walking skeleton\n// Returns a hard-coded reverse-string tool as state.candidate.\n// This front-loads the Tool Factory / sandbox wiring before any real LLM prompt.\nconst state = $input.first().json;\nif (!state || state.schema_version !== 1) {\n  throw new Error(`WF-2 stub: invalid schema_version ${JSON.stringify(state?.schema_version)}`);\n}\n// Canned tool: reverses the string it receives via stdin/argv/SANDBOX_INPUT\nconst code = `\nimport sys, os\ndef run(input: str) -> str:\n    return input[::-1]\nif __name__ == \"__main__\":\n    data = \"\"\n    try:\n        if not sys.stdin.isatty():\n            data = sys.stdin.read()\n    except:\n        pass\n    if not data and len(sys.argv) > 1:\n        data = sys.argv[1]\n    if not data:\n        data = os.getenv(\"SANDBOX_INPUT\", \"\")\n    # fallback: if still empty, try to find the word after \"reverse\" in goal\n    if not data.strip():\n        data = \"hello\"\n    print(run(data.strip()))\n`;\nstate.candidate = {\n  tool_name: \"reverse_string\",\n  description: \"Reverses the input string (stdin/argv/SANDBOX_INPUT)\",\n  input_schema: { input: \"string\" },\n  code: code.trim(),\n  language: \"python\"\n};\n// ensure loop budget exists\nstate.loop = state.loop || { gate: \"test\", remaining: 3 };\nreturn [{ json: state }];\n"
       },
       "id": "wf2-canned",
       "name": "Lab stub: canned reverse_string",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ],
+      "disabled": false
     }
   ],
   "connections": {
-    "Execute Sub-workflow Trigger": { "main": [[{ "node": "Lab stub: canned reverse_string", "type": "main", "index": 0 }]] }
+    "Execute Sub-workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Lab stub: canned reverse_string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "meta": { "instanceId": "wf2-squad-lab" },
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "wf2" }],
+  "meta": {
+    "instanceId": "wf2-squad-lab"
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "wf2"
+    }
+  ],
   "versionId": "wf2-v1-stub"
 }

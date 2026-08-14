@@ -1,5 +1,5 @@
 {
-  "name": "wf4-tool-factory — DynamicStructuredTool from approved code (WF-4)",
+  "name": "wf4-tool-factory \u2014 DynamicStructuredTool from approved code (WF-4)",
   "nodes": [
     {
       "parameters": {},
@@ -7,35 +7,75 @@
       "name": "Execute Sub-workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ],
+      "disabled": false
     },
     {
       "parameters": {
-        "jsCode": "// WF-4 guard — validate approved candidate\nconst state = $input.first().json;\nif (!state || state.schema_version !== 1) throw new Error(`WF-4: invalid schema_version ${JSON.stringify(state?.schema_version)}`);\nconst c = state.candidate;\nif (!c || !c.tool_name || !c.code) throw new Error('WF-4: candidate.tool_name/code missing');\nif (!c.input_schema) throw new Error('WF-4: candidate.input_schema missing');\n// stash state for next nodes\nreturn [{ json: { state, candidate: c } }];\n"
+        "jsCode": "// WF-4 guard \u2014 validate approved candidate\nconst state = $input.first().json;\nif (!state || state.schema_version !== 1) throw new Error(`WF-4: invalid schema_version ${JSON.stringify(state?.schema_version)}`);\nconst c = state.candidate;\nif (!c || !c.tool_name || !c.code) throw new Error('WF-4: candidate.tool_name/code missing');\nif (!c.input_schema) throw new Error('WF-4: candidate.input_schema missing');\n// stash state for next nodes\nreturn [{ json: { state, candidate: c } }];\n"
       },
       "id": "wf4-guard",
       "name": "Guard: validate candidate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ],
+      "disabled": false
     },
     {
       "parameters": {
-        "jsCode": "// WF-4 Tool Factory — builds a DynamicStructuredTool\n// The tool's func is a THIN HTTP CLIENT to sandbox-runner (ADR-2).\n// No generated code ever runs in this Code Node.\n//\n// n8n LangChain Code node quirk: tools built here must be returned as `tools` for the Agent to see.\n// Sprint 1 sketch: we build ONE tool from candidate and emit it. The Orchestrator's Agent will have it.\n// If n8n's LangChain Code node version drift blocks this (Risk R4), fallback is a generic\n// run_approved_tool(tool_name, input) dispatcher — architecture preserved.\nconst { DynamicStructuredTool } = require('@langchain/core/tools');\nconst { z } = require('zod');\n\nconst candidate = $input.first().json.candidate;\nconst state = $input.first().json.state;\n\n// Build zod schema from candidate.input_schema — Sprint 1 is {input: string}\n// Generic: map each key to z.string()\nconst schemaShape = {};\nfor (const [k, v] of Object.entries(candidate.input_schema)) {\n  // v is a type hint string like \"string\" — map to z.string()\n  schemaShape[k] = z.string().describe(`input field ${k}`);\n}\nconst schema = z.object(schemaShape);\n\nconst sandboxUrl = process.env.SANDBOX_RUNNER_URL || $env.SANDBOX_RUNNER_URL || 'http://sandbox-runner:8000';\n\nconst tool = new DynamicStructuredTool({\n  name: candidate.tool_name,\n  description: candidate.description || `Tool ${candidate.tool_name} — input: ${JSON.stringify(candidate.input_schema)}`,\n  schema: schema,\n  func: async (args) => {\n    // Thin HTTP client — never eval candidate.code here\n    const input = args.input ?? args.text ?? JSON.stringify(args);\n    const body = JSON.stringify({\n      language: candidate.language || 'python',\n      code: candidate.code,\n      input: String(input),\n      timeout_s: 10,\n      memory_mb: 256\n    });\n    // n8n's fetch is available in Code Node; fallback to httpRequest via $http if needed\n    // Use global fetch (Node 18+) — n8n Code Node allows it with NODE_FUNCTION_ALLOW_BUILTIN\n    const resp = await fetch(`${sandboxUrl}/execute`, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: body\n    });\n    const data = await resp.json();\n    if (!resp.ok) {\n      return `tool error: http ${resp.status} — ${JSON.stringify(data)}`;\n    }\n    if (data.exit_code !== 0 || data.timed_out) {\n      return `tool error: exit ${data.exit_code} — stderr: ${(data.stderr||'').slice(0,500)}`;\n    }\n    // Return stdout as tool output for the Agent to use\n    return (data.stdout || '').trim();\n  }\n});\n\n// For demo visibility, also test-invoke the tool once with the state's goal-derived input\n// so the workflow's output already contains the result even before the Orchestrator's Agent calls it.\nconst demoInput = (state.test && state.test.runs && state.test.runs[0] && state.test.runs[0].input) || state.goal || 'hello';\n// Extract the last word as the string to reverse (walking skeleton heuristic)\nlet toolInput = demoInput;\n// If goal is \"reverse this string: hello\" → tool should get \"hello\"\nconst m = /:\\s*\"?([^\"\\n]+)\"?\\s*$/.exec(demoInput);\nif (m) toolInput = m[1].trim();\nelse {\n  const words = demoInput.trim().split(/\\s+/);\n  toolInput = words[words.length-1] || demoInput;\n}\nlet demoOutput = null;\nlet demoError = null;\ntry {\n  demoOutput = await tool.invoke({ input: toolInput });\n} catch (e) {\n  demoError = String(e).slice(0,500);\n}\n\n// Return state augmented with factory result\nreturn [{\n  json: {\n    ...state,\n    tool_factory: {\n      tool_name: tool.name,\n      description: tool.description,\n      demo_input: toolInput,\n      demo_output: demoOutput,\n      demo_error: demoError\n    },\n    outcome: {\n      ...(state.outcome||{}),\n      status: demoError ? 'failed' : 'deployed',\n      final_answer: demoOutput || state.outcome?.final_answer || ''\n    }\n  },\n  // Also expose the tool for n8n Agent wiring if this workflow is used as a Tool\n  // (LangChain Code node convention: return tools in a separate field — we emulate it)\n  pairedItem: { item: 0 }\n}];\n"
+        "jsCode": "// WF-4 Tool Factory \u2014 builds a DynamicStructuredTool\n// The tool's func is a THIN HTTP CLIENT to sandbox-runner (ADR-2).\n// No generated code ever runs in this Code Node.\n//\n// n8n LangChain Code node quirk: tools built here must be returned as `tools` for the Agent to see.\n// Sprint 1 sketch: we build ONE tool from candidate and emit it. The Orchestrator's Agent will have it.\n// If n8n's LangChain Code node version drift blocks this (Risk R4), fallback is a generic\n// run_approved_tool(tool_name, input) dispatcher \u2014 architecture preserved.\nconst { DynamicStructuredTool } = require('@langchain/core/tools');\nconst { z } = require('zod');\n\nconst candidate = $input.first().json.candidate;\nconst state = $input.first().json.state;\n\n// Build zod schema from candidate.input_schema \u2014 Sprint 1 is {input: string}\n// Generic: map each key to z.string()\nconst schemaShape = {};\nfor (const [k, v] of Object.entries(candidate.input_schema)) {\n  // v is a type hint string like \"string\" \u2014 map to z.string()\n  schemaShape[k] = z.string().describe(`input field ${k}`);\n}\nconst schema = z.object(schemaShape);\n\nconst sandboxUrl = process.env.SANDBOX_RUNNER_URL || $env.SANDBOX_RUNNER_URL || 'http://sandbox-runner:8000';\n\nconst tool = new DynamicStructuredTool({\n  name: candidate.tool_name,\n  description: candidate.description || `Tool ${candidate.tool_name} \u2014 input: ${JSON.stringify(candidate.input_schema)}`,\n  schema: schema,\n  func: async (args) => {\n    // Thin HTTP client \u2014 never eval candidate.code here\n    const input = args.input ?? args.text ?? JSON.stringify(args);\n    const body = JSON.stringify({\n      language: candidate.language || 'python',\n      code: candidate.code,\n      input: String(input),\n      timeout_s: 10,\n      memory_mb: 256\n    });\n    // n8n's fetch is available in Code Node; fallback to httpRequest via $http if needed\n    // Use global fetch (Node 18+) \u2014 n8n Code Node allows it with NODE_FUNCTION_ALLOW_BUILTIN\n    const resp = await fetch(`${sandboxUrl}/execute`, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: body\n    });\n    const data = await resp.json();\n    if (!resp.ok) {\n      return `tool error: http ${resp.status} \u2014 ${JSON.stringify(data)}`;\n    }\n    if (data.exit_code !== 0 || data.timed_out) {\n      return `tool error: exit ${data.exit_code} \u2014 stderr: ${(data.stderr||'').slice(0,500)}`;\n    }\n    // Return stdout as tool output for the Agent to use\n    return (data.stdout || '').trim();\n  }\n});\n\n// For demo visibility, also test-invoke the tool once with the state's goal-derived input\n// so the workflow's output already contains the result even before the Orchestrator's Agent calls it.\nconst demoInput = (state.test && state.test.runs && state.test.runs[0] && state.test.runs[0].input) || state.goal || 'hello';\n// Extract the last word as the string to reverse (walking skeleton heuristic)\nlet toolInput = demoInput;\n// If goal is \"reverse this string: hello\" \u2192 tool should get \"hello\"\nconst m = /:\\s*\"?([^\"\\n]+)\"?\\s*$/.exec(demoInput);\nif (m) toolInput = m[1].trim();\nelse {\n  const words = demoInput.trim().split(/\\s+/);\n  toolInput = words[words.length-1] || demoInput;\n}\nlet demoOutput = null;\nlet demoError = null;\ntry {\n  demoOutput = await tool.invoke({ input: toolInput });\n} catch (e) {\n  demoError = String(e).slice(0,500);\n}\n\n// Return state augmented with factory result\nreturn [{\n  json: {\n    ...state,\n    tool_factory: {\n      tool_name: tool.name,\n      description: tool.description,\n      demo_input: toolInput,\n      demo_output: demoOutput,\n      demo_error: demoError\n    },\n    outcome: {\n      ...(state.outcome||{}),\n      status: demoError ? 'failed' : 'deployed',\n      final_answer: demoOutput || state.outcome?.final_answer || ''\n    }\n  },\n  // Also expose the tool for n8n Agent wiring if this workflow is used as a Tool\n  // (LangChain Code node convention: return tools in a separate field \u2014 we emulate it)\n  pairedItem: { item: 0 }\n}];\n"
       },
       "id": "wf4-factory",
       "name": "Tool Factory: DynamicStructuredTool",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ],
+      "disabled": false
     }
   ],
   "connections": {
-    "Execute Sub-workflow Trigger": { "main": [[{ "node": "Guard: validate candidate", "type": "main", "index": 0 }]] },
-    "Guard: validate candidate": { "main": [[{ "node": "Tool Factory: DynamicStructuredTool", "type": "main", "index": 0 }]] }
+    "Execute Sub-workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Guard: validate candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guard: validate candidate": {
+      "main": [
+        [
+          {
+            "node": "Tool Factory: DynamicStructuredTool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "meta": { "instanceId": "wf4-tool-factory" },
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "wf4" }],
+  "meta": {
+    "instanceId": "wf4-tool-factory"
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "wf4"
+    }
+  ],
   "versionId": "wf4-v1"
 }

@@ -1,5 +1,5 @@
 {
-  "name": "wf0-smoke — Code Node external import check (E1-2)",
+  "name": "wf0-smoke \u2014 Code Node external import check (E1-2)",
   "nodes": [
     {
       "parameters": {
@@ -10,24 +10,42 @@
       "name": "Smoke Code Node",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ],
+      "disabled": false
     },
     {
       "parameters": {
         "rule": {
-          "interval": [{}]
+          "interval": [
+            {}
+          ]
         }
       },
       "id": "smoke-manual-trigger",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ],
+      "disabled": false
     }
   ],
   "connections": {
     "Manual Trigger": {
-      "main": [[{ "node": "Smoke Code Node", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Smoke Code Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -38,7 +56,11 @@
     "executionOrder": "v1"
   },
   "staticData": null,
-  "tags": [{ "name": "smoke" }],
+  "tags": [
+    {
+      "name": "smoke"
+    }
+  ],
   "triggerCount": 0,
   "versionId": "wf0-smoke-v1"
 }
