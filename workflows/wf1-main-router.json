@@ -1,42 +1,52 @@
 {
-  "name": "wf1-main-router — Orchestrator (WF-1) — Sprint 4 Reuse",
+  "name": "wf1-main-router \u2014 Orchestrator (WF-1) \u2014 Sprint 4 Reuse",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "living-sandbox",
-        "options": {}
+        "options": {},
+        "responseMode": "responseNode"
       },
       "id": "wf1-webhook",
       "name": "Webhook: POST /living-sandbox",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "webhookId": "living-sandbox-webhook"
     },
     {
       "parameters": {
-        "jsCode": "// WF-1 init — state per 02 §3\nconst body = $input.first().json.body || $input.first().json;\nconst goal = body.goal || body.input || $input.first().json.goal || \"reverse this string: hello\";\nconst task_id = `task-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;\nconst state = {\n  schema_version: 1,\n  task_id: task_id,\n  goal: String(goal),\n  loop: { gate: \"audit\", remaining: 3 },\n  recall: { reusable_tools: [], mutation_constraints: [] },\n  candidate: null,\n  test: { passed: false, runs: [] },\n  audit: { security_pass: true, edge_case_pass: true, objections: [] },\n  outcome: { status: \"\", final_answer: \"\" }\n};\nlet toolInput = String(goal);\nconst m = /:\\s*\"?([^\"\\n]+)\"?\\s*$/.exec(toolInput);\nif (m) toolInput = m[1].trim();\nstate.test.runs = [];\nreturn [{ json: { ...state, _toolInput: toolInput } }];\n"
+        "jsCode": "// WF-1 init \u2014 state per 02 \u00a73\nconst body = $input.first().json.body || $input.first().json;\nconst goal = body.goal || body.input || $input.first().json.goal || \"reverse this string: hello\";\nconst task_id = `task-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;\nconst state = {\n  schema_version: 1,\n  task_id: task_id,\n  goal: String(goal),\n  loop: { gate: \"audit\", remaining: 3 },\n  recall: { reusable_tools: [], mutation_constraints: [] },\n  candidate: null,\n  test: { passed: false, runs: [] },\n  audit: { security_pass: true, edge_case_pass: true, objections: [] },\n  outcome: { status: \"\", final_answer: \"\" }\n};\nlet toolInput = String(goal);\nconst m = /:\\s*\"?([^\"\\n]+)\"?\\s*$/.exec(toolInput);\nif (m) toolInput = m[1].trim();\nstate.test.runs = [];\nreturn [{ json: { ...state, _toolInput: toolInput } }];\n"
       },
       "id": "wf1-init",
       "name": "Init state",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "wf7-memory-recall"
+          "value": "2WAKnAYqDQx9goe7"
         }
       },
       "id": "wf1-call-recall",
       "name": "Call Recall (WF-7)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
@@ -54,45 +64,57 @@
       "name": "Switch: reusable_tool?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// WF-1 reuse path — take top reusable tool as candidate, skip Lab\nconst state = $input.first().json;\nconst top = state.recall.reusable_tools[0];\nconst next = JSON.parse(JSON.stringify(state));\nnext.candidate = {\n  tool_name: top.tool_name,\n  code: top.code,\n  description: top.description,\n  input_schema: top.input_schema,\n  language: 'python'\n};\nnext.outcome = next.outcome || {};\nnext.outcome.status = 'reused';\n// Add mutation constraints already in recall for observability\nreturn [{ json: next }];\n"
+        "jsCode": "// WF-1 reuse path \u2014 take top reusable tool as candidate, skip Lab\nconst state = $input.first().json;\nconst top = state.recall.reusable_tools[0];\nconst next = JSON.parse(JSON.stringify(state));\nnext.candidate = {\n  tool_name: top.tool_name,\n  code: top.code,\n  description: top.description,\n  input_schema: top.input_schema,\n  language: 'python'\n};\nnext.outcome = next.outcome || {};\nnext.outcome.status = 'reused';\n// Add mutation constraints already in recall for observability\nreturn [{ json: next }];\n"
       },
       "id": "wf1-reuse-pick",
       "name": "Pick reusable tool",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 500]
+      "position": [
+        900,
+        500
+      ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "Fi900w5qHToZqn97"
+          "value": "lnYmTMfib9PoIXKw"
         }
       },
       "id": "wf1-call-lab",
       "name": "Call Lab (WF-2 live)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "ybefOkhL0U3tm5Zo"
+          "value": "iqjtkZZvcbeXDTxb"
         }
       },
       "id": "wf1-call-audit",
       "name": "Call Audit (WF-3)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
     },
     {
       "parameters": {
@@ -102,7 +124,10 @@
       "name": "Decide: deploy/rework/failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 300]
+      "position": [
+        1560,
+        300
+      ]
     },
     {
       "parameters": {
@@ -120,7 +145,10 @@
       "name": "Switch: deploy?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 2,
-      "position": [1780, 300]
+      "position": [
+        1780,
+        300
+      ]
     },
     {
       "parameters": {
@@ -138,41 +166,53 @@
       "name": "Switch: rework?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 2,
-      "position": [1780, 500]
+      "position": [
+        1780,
+        500
+      ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "DnnIk7HtBBlHn5Rv"
+          "value": "M8mk57I2mwa1sgF1"
         }
       },
       "id": "wf1-call-factory",
       "name": "Call Tool Factory (WF-4)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [2000, 300]
+      "position": [
+        2000,
+        300
+      ]
     },
     {
       "parameters": {
         "jsCode": "const state = $input.first().json;\nconst next = JSON.parse(JSON.stringify(state));\nnext.loop.remaining = (next.loop.remaining || 1) - 1;\nif (next.loop.remaining < 0) next.loop.remaining = 0;\nreturn [{ json: next }];\n"
       },
       "id": "wf1-rework",
-      "name": "Prepare rework → Lab",
+      "name": "Prepare rework \u2192 Lab",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 500]
+      "position": [
+        2000,
+        500
+      ]
     },
     {
       "parameters": {
         "jsCode": "const state = $input.first().json;\nreturn [{ json: { task_id: state.task_id, workflow: \"wf1-main-router\", gate: \"audit-exhausted\", verdict: `failed after ${3 - (state.loop.remaining||0)} reworks`, duration_ms: 0, state } }];\n"
       },
       "id": "wf1-failed",
-      "name": "Log failure → swarm_log",
+      "name": "Log failure \u2192 swarm_log",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 700]
+      "position": [
+        2000,
+        700
+      ]
     },
     {
       "parameters": {
@@ -184,7 +224,10 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2220, 300]
+      "position": [
+        2220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -196,42 +239,189 @@
       "name": "Respond failed",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2220, 700]
+      "position": [
+        2220,
+        700
+      ]
     }
   ],
   "connections": {
-    "Webhook: POST /living-sandbox": { "main": [[{ "node": "Init state", "type": "main", "index": 0 }]] },
-    "Init state": { "main": [[{ "node": "Call Recall (WF-7)", "type": "main", "index": 0 }]] },
-    "Call Recall (WF-7)": { "main": [[{ "node": "Switch: reusable_tool?", "type": "main", "index": 0 }]] },
-    "Switch: reusable_tool?": {
+    "Webhook: POST /living-sandbox": {
       "main": [
-        [{ "node": "Call Lab (WF-2 live)", "type": "main", "index": 0 }],
-        [{ "node": "Pick reusable tool", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Init state",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Pick reusable tool": { "main": [[{ "node": "Call Tool Factory (WF-4)", "type": "main", "index": 0 }]] },
-    "Call Lab (WF-2 live)": { "main": [[{ "node": "Call Audit (WF-3)", "type": "main", "index": 0 }]] },
-    "Call Audit (WF-3)": { "main": [[{ "node": "Decide: deploy/rework/failed", "type": "main", "index": 0 }]] },
-    "Decide: deploy/rework/failed": { "main": [[{ "node": "Switch: deploy?", "type": "main", "index": 0 }]] },
+    "Init state": {
+      "main": [
+        [
+          {
+            "node": "Call Recall (WF-7)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Recall (WF-7)": {
+      "main": [
+        [
+          {
+            "node": "Switch: reusable_tool?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: reusable_tool?": {
+      "main": [
+        [
+          {
+            "node": "Call Lab (WF-2 live)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pick reusable tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick reusable tool": {
+      "main": [
+        [
+          {
+            "node": "Call Tool Factory (WF-4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Lab (WF-2 live)": {
+      "main": [
+        [
+          {
+            "node": "Call Audit (WF-3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Audit (WF-3)": {
+      "main": [
+        [
+          {
+            "node": "Decide: deploy/rework/failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide: deploy/rework/failed": {
+      "main": [
+        [
+          {
+            "node": "Switch: deploy?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Switch: deploy?": {
       "main": [
-        [{ "node": "Call Tool Factory (WF-4)", "type": "main", "index": 0 }],
-        [{ "node": "Switch: rework?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Call Tool Factory (WF-4)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch: rework?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Switch: rework?": {
       "main": [
-        [{ "node": "Prepare rework → Lab", "type": "main", "index": 0 }],
-        [{ "node": "Log failure → swarm_log", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Prepare rework \u2192 Lab",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log failure \u2192 swarm_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Prepare rework → Lab": { "main": [[{ "node": "Call Lab (WF-2 live)", "type": "main", "index": 0 }]] },
-    "Call Tool Factory (WF-4)": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
-    "Log failure → swarm_log": { "main": [[{ "node": "Respond failed", "type": "main", "index": 0 }]] }
+    "Prepare rework \u2192 Lab": {
+      "main": [
+        [
+          {
+            "node": "Call Lab (WF-2 live)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Tool Factory (WF-4)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log failure \u2192 swarm_log": {
+      "main": [
+        [
+          {
+            "node": "Respond failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "meta": { "instanceId": "wf1-v4-reuse" },
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "wf1" }],
+  "meta": {
+    "instanceId": "wf1-v4-reuse"
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "wf1"
+    }
+  ],
   "versionId": "wf1-v4-reuse",
   "active": true
 }
