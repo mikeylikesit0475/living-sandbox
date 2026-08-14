@@ -68,7 +68,8 @@
         "options": {
           "bodyContentType": "json",
           "timeout": 30000
-        }
+        },
+        "method": "POST"
       },
       "id": "wf6-embed",
       "name": "Ollama: embed",
@@ -95,7 +96,8 @@
         "options": {
           "bodyContentType": "json",
           "timeout": 10000
-        }
+        },
+        "method": "POST"
       },
       "id": "wf6-qdrant",
       "name": "Qdrant: upsert",

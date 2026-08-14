@@ -64,7 +64,8 @@
         "options": {
           "bodyContentType": "json",
           "timeout": 20000
-        }
+        },
+        "method": "POST"
       },
       "id": "wf5-http",
       "name": "HTTP \u2192 sandbox-runner /execute",

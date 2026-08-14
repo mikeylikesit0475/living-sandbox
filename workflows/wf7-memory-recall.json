@@ -46,7 +46,8 @@
         "options": {
           "bodyContentType": "json",
           "timeout": 30000
-        }
+        },
+        "method": "POST"
       },
       "id": "wf7-embed",
       "name": "Ollama: embed goal",
@@ -99,7 +100,8 @@
         "options": {
           "bodyContentType": "json",
           "timeout": 10000
-        }
+        },
+        "method": "POST"
       },
       "id": "wf7-search-tool",
       "name": "Qdrant: search tool_store",
@@ -138,7 +140,8 @@
         "options": {
           "bodyContentType": "json",
           "timeout": 10000
-        }
+        },
+        "method": "POST"
       },
       "id": "wf7-search-problem",
       "name": "Qdrant: search problem_store",
@@ -186,8 +189,9 @@
         },
         "options": {
           "bodyContentType": "json",
-          "timeout": 30000
-        }
+          "timeout": 60000
+        },
+        "method": "POST"
       },
       "id": "wf7-mutate-llm",
       "name": "Ollama: rewrite failures \u2192 constraints (1.5b)",
@@ -197,7 +201,9 @@
         1340,
         500
       ],
-      "disabled": false
+      "disabled": false,
+      "continueOnFail": true,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -256,13 +262,6 @@
             "type": "main",
             "index": 0
           }
-        ],
-        [
-          {
-            "node": "Qdrant: search problem_store",
-            "type": "main",
-            "index": 0
-          }
         ]
       ]
     },
@@ -270,7 +269,7 @@
       "main": [
         [
           {
-            "node": "Assemble reuse + mutations",
+            "node": "Qdrant: search problem_store",
             "type": "main",
             "index": 0
           }
@@ -281,7 +280,29 @@
       "main": [
         [
           {
-            "node": "Assemble reuse + mutations",
+            "node": "Prep reuse + raw failures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep reuse + raw failures": {
+      "main": [
+        [
+          {
+            "node": "Ollama: rewrite failures \u2192 constraints (1.5b)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama: rewrite failures \u2192 constraints (1.5b)": {
+      "main": [
+        [
+          {
+            "node": "Assemble final state",
             "type": "main",
             "index": 0
           }

@@ -68,7 +68,8 @@
         "options": {
           "bodyContentType": "json",
           "timeout": 90000
-        }
+        },
+        "method": "POST"
       },
       "id": "wf3-sec-llm",
       "name": "Ollama: Security",
@@ -135,7 +136,8 @@
         "options": {
           "bodyContentType": "json",
           "timeout": 90000
-        }
+        },
+        "method": "POST"
       },
       "id": "wf3-crit-llm",
       "name": "Ollama: Critic",

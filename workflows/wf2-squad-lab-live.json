@@ -68,7 +68,8 @@
         "options": {
           "bodyContentType": "json",
           "timeout": 90000
-        }
+        },
+        "method": "POST"
       },
       "id": "wf2-ollama",
       "name": "Ollama: generate candidate",
@@ -99,13 +100,13 @@
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "wf5-sandbox-exec"
+          "value": "Vohw8SvYKsjk0vhu"
         }
       },
       "id": "wf2-test",
       "name": "Call WF-5 sandbox-exec (test)",
       "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1340,
         300
@@ -126,7 +127,7 @@
       },
       "id": "wf2-switch",
       "name": "Switch: test.passed?",
-      "type": "n8n-nodes-base.switch",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
         1560,

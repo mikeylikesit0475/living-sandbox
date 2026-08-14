@@ -44,28 +44,47 @@
       "id": "wf1-call-recall",
       "name": "Call Recall (WF-7)",
       "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         680,
         300
       ],
+      "disabled": false,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "wf1-route-flag",
+      "name": "Set hasReusable flag",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const state = $input.first().json;\nstate._hasReusable = Array.isArray(state.recall?.reusable_tools) && state.recall.reusable_tools.length > 0;\nreturn [{json: state}];",
+        "notice": ""
+      },
       "disabled": false
     },
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "boolean": [
             {
-              "value1": "={{ $json.recall.reusable_tools.length }}",
-              "operation": "larger",
-              "value2": 0
+              "value1": "={{ $json._hasReusable }}",
+              "operation": "equal",
+              "value2": true
             }
           ]
-        }
+        },
+        "options": {}
       },
       "id": "wf1-switch-reuse",
       "name": "Switch: reusable_tool?",
-      "type": "n8n-nodes-base.switch",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
         900,
@@ -98,7 +117,7 @@
       "id": "wf1-call-lab",
       "name": "Call Lab (WF-2 live)",
       "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1120,
         300
@@ -116,7 +135,7 @@
       "id": "wf1-call-audit",
       "name": "Call Audit (WF-3)",
       "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1340,
         300
@@ -143,15 +162,16 @@
           "string": [
             {
               "value1": "={{ $json._auditDecision }}",
-              "operation": "isEqual",
-              "value2": "deploy"
+              "value2": "deploy",
+              "operation": "equal"
             }
           ]
-        }
+        },
+        "options": {}
       },
       "id": "wf1-switch-deploy",
       "name": "Switch: deploy?",
-      "type": "n8n-nodes-base.switch",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
         1780,
@@ -165,15 +185,16 @@
           "string": [
             {
               "value1": "={{ $json._auditDecision }}",
-              "operation": "isEqual",
-              "value2": "rework"
+              "value2": "rework",
+              "operation": "equal"
             }
           ]
-        }
+        },
+        "options": {}
       },
       "id": "wf1-switch-rework",
       "name": "Switch: rework?",
-      "type": "n8n-nodes-base.switch",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
         1780,
@@ -192,7 +213,7 @@
       "id": "wf1-call-factory",
       "name": "Call Tool Factory (WF-4)",
       "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         2000,
         300
@@ -299,7 +320,7 @@
       "main": [
         [
           {
-            "node": "Switch: reusable_tool?",
+            "node": "Set hasReusable flag",
             "type": "main",
             "index": 0
           }
@@ -310,14 +331,14 @@
       "main": [
         [
           {
-            "node": "Call Lab (WF-2 live)",
+            "node": "Pick reusable tool",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Pick reusable tool",
+            "node": "Call Lab (WF-2 live)",
             "type": "main",
             "index": 0
           }
@@ -442,6 +463,17 @@
         [
           {
             "node": "Init state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set hasReusable flag": {
+      "main": [
+        [
+          {
+            "node": "Switch: reusable_tool?",
             "type": "main",
             "index": 0
           }
