@@ -1,0 +1,49 @@
+{
+  "name": "wf6-memory-write — swarm_log + vector stores (WF-6)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "wf6-trigger",
+      "name": "Execute Sub-workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-6 — log to swarm_log (E1-4)\n// Input: {task_id, workflow, gate, verdict, duration_ms} or full state\nconst inp = $input.first().json;\nconst row = {\n  task_id: inp.task_id || inp.state?.task_id || 'unknown',\n  workflow: inp.workflow || inp.gate || 'unknown',\n  gate: inp.gate || inp.workflow || 'unknown',\n  verdict: inp.verdict || inp.status || 'unknown',\n  duration_ms: inp.duration_ms || 0\n};\nreturn [{ json: row }];\n"
+      },
+      "id": "wf6-prepare",
+      "name": "Prepare log row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO swarm_log (task_id, workflow, gate, verdict, duration_ms) VALUES ('{{$json.task_id}}', '{{$json.workflow}}', '{{$json.gate}}', '{{$json.verdict}}', {{$json.duration_ms}});",
+        "additionalFields": {}
+      },
+      "id": "wf6-insert",
+      "name": "Postgres: INSERT swarm_log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-n8n",
+          "name": "Postgres n8n"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Sub-workflow Trigger": { "main": [[{ "node": "Prepare log row", "type": "main", "index": 0 }]] },
+    "Prepare log row": { "main": [[{ "node": "Postgres: INSERT swarm_log", "type": "main", "index": 0 }]] }
+  },
+  "meta": { "instanceId": "wf6-memory-write" },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "wf6" }],
+  "versionId": "wf6-v1"
+}

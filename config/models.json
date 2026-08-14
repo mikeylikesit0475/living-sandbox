@@ -1,10 +1,10 @@
 {
-  "_comment": "Sprint 0 spike output — winners recorded here. Updated by E1-3 spike script. All workflows read this file; never hard-code model names in node fields.",
-  "spike_status": "pending",
-  "spike_date": null,
-  "spike_notes": "Run scripts/model-spike.sh or python scripts/model-spike.py (20 structured-output calls per candidate, count % valid + p50 latency). Winners below are placeholders until spike completes.",
+  "_comment": "Sprint 0 spike output \u2014 winners recorded here. Updated by E1-3 spike script. All workflows read this file; never hard-code model names in node fields.",
+  "spike_status": "done",
+  "spike_date": "2026-08-14T16:18:00Z",
+  "spike_notes": "Spike: 20 runs simple reverse \u2192 both 100% valid; complex mainframe parser: 1.5b JSON escape fails, 7b 100% valid \u2192 squad=7b (reliable), level3=1.5b (fast)",
   "squad_model": {
-    "name": "qwen2.5:7b-instruct",
+    "name": "qwen2.5:7b",
     "role": "Orchestrator + Lab + Audit (JSON-reliable instruct)",
     "ollama_url": "http://ollama:11434",
     "options": {
@@ -12,18 +12,35 @@
       "num_predict": 2048,
       "think": false
     },
-    "spike_result": null
+    "spike_result": {
+      "model": "qwen2.5:7b",
+      "runs": 20,
+      "valid": 20,
+      "pct_valid": 100.0,
+      "p50_s": 3.1,
+      "p95_s": 3.4,
+      "failures_sample": [],
+      "note": "chosen for complex JSON (1.5b fails escaping on mainframe parser, 7b 100% valid)"
+    }
   },
   "level3_model": {
     "name": "qwen2.5:1.5b",
-    "role": "Level-3 micro-executors (small, fast — narrow JSON judgments)",
+    "role": "Level-3 micro-executors (small, fast \u2014 narrow JSON judgments)",
     "ollama_url": "http://ollama:11434",
     "options": {
       "temperature": 0.0,
       "num_predict": 512,
       "think": false
     },
-    "spike_result": null
+    "spike_result": {
+      "model": "qwen2.5:1.5b",
+      "runs": 20,
+      "valid": 20,
+      "pct_valid": 100.0,
+      "p50_s": 0.95,
+      "p95_s": 0.96,
+      "failures_sample": []
+    }
   },
   "embedding_model": {
     "name": "nomic-embed-text",
@@ -48,7 +65,16 @@
   "level3_candidates": [
     {
       "name": "qwen2.5:1.5b",
-      "reason": "Sub-second latency target for micro-checks"
+      "reason": "Sub-second latency target for micro-checks",
+      "spike_result": {
+        "model": "qwen2.5:1.5b",
+        "runs": 20,
+        "valid": 20,
+        "pct_valid": 100.0,
+        "p50_s": 0.95,
+        "p95_s": 0.96,
+        "failures_sample": []
+      }
     },
     {
       "name": "llama3.2:1b",
