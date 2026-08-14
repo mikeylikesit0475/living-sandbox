@@ -123,7 +123,8 @@ services:
       - ./prompts:/prompts:ro
       - ./config:/config:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:5678/healthz || exit 1"]
+      # n8n image has no curl — use Node's built-in check via wget if present, else TCP socket
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:5678/healthz', res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\" || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 15

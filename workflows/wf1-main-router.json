@@ -1,0 +1,82 @@
+{
+  "name": "wf1-main-router — Orchestrator (WF-1) — Sprint 1 walking skeleton",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "living-sandbox",
+        "options": {}
+      },
+      "id": "wf1-webhook",
+      "name": "Webhook: POST /living-sandbox",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "living-sandbox-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-1 init — build the state object per 02 §3\nconst body = $input.first().json.body || $input.first().json;\nconst goal = body.goal || body.input || $input.first().json.goal || \"reverse this string: hello\";\nconst task_id = `task-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;\nconst state = {\n  schema_version: 1,\n  task_id: task_id,\n  goal: String(goal),\n  loop: { gate: \"test\", remaining: 3 },\n  recall: { reusable_tools: [], mutation_constraints: [] },\n  candidate: null,\n  test: { passed: false, runs: [] },\n  audit: { security_pass: true, edge_case_pass: true, objections: [] },\n  outcome: { status: \"\", final_answer: \"\" }\n};\n// Also derive a simple tool input for the walking skeleton:\n// Goal like \"reverse this string: hello\" → input \"hello\"\nlet toolInput = String(goal);\nconst m = /:\\s*\"?([^\"\\n]+)\"?\\s*$/.exec(toolInput);\nif (m) toolInput = m[1].trim();\n// stash for downstream\nstate.test.runs = []; // will be filled by WF-2→WF-5 chain; keep input separately in a transient field\nreturn [{ json: { ...state, _toolInput: toolInput } }];\n"
+      },
+      "id": "wf1-init",
+      "name": "Init state",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "wf2-squad-lab"
+        },
+        "parameters": {
+          "additionalFields": {}
+        }
+      },
+      "id": "wf1-call-lab",
+      "name": "Call Lab (WF-2 stub)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "wf4-tool-factory"
+        }
+      },
+      "id": "wf1-call-factory",
+      "name": "Call Tool Factory (WF-4)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseData": "={{ { task_id: $json.task_id, goal: $json.goal, tool: $json.tool_factory?.tool_name, demo_input: $json.tool_factory?.demo_input, answer: $json.outcome?.final_answer, status: $json.outcome?.status, candidate_code_preview: ($json.candidate?.code||'').slice(0,300) } }}",
+        "options": {}
+      },
+      "id": "wf1-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: POST /living-sandbox": { "main": [[{ "node": "Init state", "type": "main", "index": 0 }]] },
+    "Init state": { "main": [[{ "node": "Call Lab (WF-2 stub)", "type": "main", "index": 0 }]] },
+    "Call Lab (WF-2 stub)": { "main": [[{ "node": "Call Tool Factory (WF-4)", "type": "main", "index": 0 }]] },
+    "Call Tool Factory (WF-4)": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "meta": { "instanceId": "wf1-main-router" },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "wf1" }],
+  "versionId": "wf1-v1-skeleton",
+  "active": true
+}
