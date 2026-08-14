@@ -96,36 +96,34 @@ async def _run_in_container(code: str, stdin_input: str, timeout_s: int, memory_
     Returns raw result dict.
     """
     start = time.monotonic()
-    tmpdir = tempfile.mkdtemp(prefix="sb-")
-    code_path = Path(tmpdir) / "code.py"
-    # Write code to a temp file so we can mount it read-only rather than embedding in sh -c
-    # This avoids shell-escaping hazards and keeps the Docker command auditable.
-    code_path.write_text(code, encoding="utf-8")
+    # Use base64 to inject code inside the container (avoids host/tmp bind-mount
+    # which breaks under docker.sock mapping where /tmp is not shared with host).
+    import base64
+    code_b64 = base64.b64encode(code.encode("utf-8")).decode("ascii")
 
     # Container name for reliable cleanup on timeout
     cname = f"sb-{uuid.uuid4().hex[:12]}"
 
     # Build docker run command — every flag is a security decision, comment it.
-    # Keep this list literal, not templated, so code review can verify each flag.
     cmd = [
         "docker", "run",
         "--rm",
         "--name", cname,
-        "--network", "none",                 # R1: no egress — requests.get must fail
-        "--read-only",                       # R1: read-only rootfs
+        "--network", "none",
+        "--read-only",
         "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
         "--tmpfs", "/workspace:rw,noexec,nosuid,size=64m",
-        "--user", "65534:65534",             # nobody:nogroup — non-root
-        "--cap-drop", "ALL",                 # drop all caps
+        "--user", "65534:65534",
+        "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges",
         "--memory", f"{memory_mb}m",
-        "--memory-swap", f"{memory_mb}m",    # no swap
+        "--memory-swap", f"{memory_mb}m",
         "--cpus", "1.0",
-        "--pids-limit", "64",                # fork-bomb containment
-        "-i",                                # keep stdin open for input injection
-        "-v", f"{code_path}:/workspace/code.py:ro",
+        "--pids-limit", "64",
+        "-i",
         SANDBOX_IMAGE,
-        "python", "/workspace/code.py",
+        "sh", "-c",
+        f"echo '{code_b64}' | base64 -d > /workspace/code.py && python /workspace/code.py",
     ]
 
     # Pass `input` as both stdin and as argv[1] (Lab convention documented in prompts/lab_system.md)
@@ -187,11 +185,6 @@ async def _run_in_container(code: str, stdin_input: str, timeout_s: int, memory_
         # Ensure container is gone even on runner crash path
         try:
             subprocess.run(["docker", "rm", "-f", cname], timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            pass
-        try:
-            code_path.unlink(missing_ok=True)
-            Path(tmpdir).rmdir()
         except Exception:
             pass
 
