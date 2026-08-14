@@ -1,5 +1,5 @@
 {
-  "name": "wf1-main-router — Orchestrator (WF-1) — Sprint 3 Audit Gate",
+  "name": "wf1-main-router — Orchestrator (WF-1) — Sprint 4 Reuse",
   "nodes": [
     {
       "parameters": {
@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-1 init — build the state object per 02 §3\nconst body = $input.first().json.body || $input.first().json;\nconst goal = body.goal || body.input || $input.first().json.goal || \"reverse this string: hello\";\nconst task_id = `task-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;\nconst state = {\n  schema_version: 1,\n  task_id: task_id,\n  goal: String(goal),\n  loop: { gate: \"audit\", remaining: 3 },\n  recall: { reusable_tools: [], mutation_constraints: [] },\n  candidate: null,\n  test: { passed: false, runs: [] },\n  audit: { security_pass: true, edge_case_pass: true, objections: [] },\n  outcome: { status: \"\", final_answer: \"\" }\n};\nlet toolInput = String(goal);\nconst m = /:\\s*\"?([^\"\\n]+)\"?\\s*$/.exec(toolInput);\nif (m) toolInput = m[1].trim();\nstate.test.runs = [];\nreturn [{ json: { ...state, _toolInput: toolInput } }];\n"
+        "jsCode": "// WF-1 init — state per 02 §3\nconst body = $input.first().json.body || $input.first().json;\nconst goal = body.goal || body.input || $input.first().json.goal || \"reverse this string: hello\";\nconst task_id = `task-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;\nconst state = {\n  schema_version: 1,\n  task_id: task_id,\n  goal: String(goal),\n  loop: { gate: \"audit\", remaining: 3 },\n  recall: { reusable_tools: [], mutation_constraints: [] },\n  candidate: null,\n  test: { passed: false, runs: [] },\n  audit: { security_pass: true, edge_case_pass: true, objections: [] },\n  outcome: { status: \"\", final_answer: \"\" }\n};\nlet toolInput = String(goal);\nconst m = /:\\s*\"?([^\"\\n]+)\"?\\s*$/.exec(toolInput);\nif (m) toolInput = m[1].trim();\nstate.test.runs = [];\nreturn [{ json: { ...state, _toolInput: toolInput } }];\n"
       },
       "id": "wf1-init",
       "name": "Init state",
@@ -29,38 +29,80 @@
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "wf2-squad-lab-live"
+          "value": "wf7-memory-recall"
         }
       },
-      "id": "wf1-call-lab",
-      "name": "Call Lab (WF-2 live)",
+      "id": "wf1-call-recall",
+      "name": "Call Recall (WF-7)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [680, 300]
     },
     {
       "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.recall.reusable_tools.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "wf1-switch-reuse",
+      "name": "Switch: reusable_tool?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-1 reuse path — take top reusable tool as candidate, skip Lab\nconst state = $input.first().json;\nconst top = state.recall.reusable_tools[0];\nconst next = JSON.parse(JSON.stringify(state));\nnext.candidate = {\n  tool_name: top.tool_name,\n  code: top.code,\n  description: top.description,\n  input_schema: top.input_schema,\n  language: 'python'\n};\nnext.outcome = next.outcome || {};\nnext.outcome.status = 'reused';\n// Add mutation constraints already in recall for observability\nreturn [{ json: next }];\n"
+      },
+      "id": "wf1-reuse-pick",
+      "name": "Pick reusable tool",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "wf3-squad-audit"
+          "value": "Fi900w5qHToZqn97"
+        }
+      },
+      "id": "wf1-call-lab",
+      "name": "Call Lab (WF-2 live)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "ybefOkhL0U3tm5Zo"
         }
       },
       "id": "wf1-call-audit",
       "name": "Call Audit (WF-3)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [900, 300]
+      "position": [1340, 300]
     },
     {
       "parameters": {
-        "jsCode": "// WF-1 audit gate — Switch logic as Code Node (n8n Switch needs explicit boolean)\nconst state = $input.first().json;\nconst sec = state.audit?.security_pass;\nconst edge = state.audit?.edge_case_pass;\nconst remaining = state.loop?.remaining ?? 0;\nlet decision;\nif (sec && edge) decision = \"deploy\";\nelse if (remaining > 0) decision = \"rework\";\nelse decision = \"failed\";\nreturn [{ json: { ...state, _auditDecision: decision } }];\n"
+        "jsCode": "const state = $input.first().json;\nconst sec = state.audit?.security_pass;\nconst edge = state.audit?.edge_case_pass;\nconst remaining = state.loop?.remaining ?? 0;\nlet decision;\nif (sec && edge) decision = \"deploy\";\nelse if (remaining > 0) decision = \"rework\";\nelse decision = \"failed\";\nreturn [{ json: { ...state, _auditDecision: decision } }];\n"
       },
       "id": "wf1-decide",
       "name": "Decide: deploy/rework/failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [1560, 300]
     },
     {
       "parameters": {
@@ -78,7 +120,7 @@
       "name": "Switch: deploy?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 2,
-      "position": [1340, 300]
+      "position": [1780, 300]
     },
     {
       "parameters": {
@@ -96,70 +138,78 @@
       "name": "Switch: rework?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 2,
-      "position": [1340, 500]
+      "position": [1780, 500]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "wf4-tool-factory"
+          "value": "DnnIk7HtBBlHn5Rv"
         }
       },
       "id": "wf1-call-factory",
       "name": "Call Tool Factory (WF-4)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
-      "position": [1560, 300]
+      "position": [2000, 300]
     },
     {
       "parameters": {
-        "jsCode": "// WF-1 rework loop — decrement remaining, route back to Lab with objections\nconst state = $input.first().json;\nconst next = JSON.parse(JSON.stringify(state));\nnext.loop.remaining = (next.loop.remaining || 1) - 1;\nif (next.loop.remaining < 0) next.loop.remaining = 0;\n// audit.objections already contains Security + Critic blocks — Lab will see them via state.audit.objections\n// Also push a swarm_log row for the rework gate\nreturn [{ json: next }];\n"
+        "jsCode": "const state = $input.first().json;\nconst next = JSON.parse(JSON.stringify(state));\nnext.loop.remaining = (next.loop.remaining || 1) - 1;\nif (next.loop.remaining < 0) next.loop.remaining = 0;\nreturn [{ json: next }];\n"
       },
       "id": "wf1-rework",
       "name": "Prepare rework → Lab",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 500]
+      "position": [2000, 500]
     },
     {
       "parameters": {
-        "jsCode": "// WF-1 failed — loop exhausted, log to problem_store via swarm_log\nconst state = $input.first().json;\nreturn [{ json: {\n  task_id: state.task_id,\n  workflow: \"wf1-main-router\",\n  gate: \"audit-exhausted\",\n  verdict: `failed after ${3 - (state.loop.remaining||0)} reworks: ${JSON.stringify(state.audit.objections||[]).slice(0,500)}`,\n  duration_ms: 0,\n  state\n} }];\n"
+        "jsCode": "const state = $input.first().json;\nreturn [{ json: { task_id: state.task_id, workflow: \"wf1-main-router\", gate: \"audit-exhausted\", verdict: `failed after ${3 - (state.loop.remaining||0)} reworks`, duration_ms: 0, state } }];\n"
       },
       "id": "wf1-failed",
       "name": "Log failure → swarm_log",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 700]
+      "position": [2000, 700]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseData": "={{ { task_id: $json.task_id, goal: $json.goal, tool: $json.tool_factory?.tool_name, answer: $json.outcome?.final_answer, status: $json.outcome?.status, audit: { security_pass: $json.audit?.security_pass, edge_case_pass: $json.audit?.edge_case_pass, objections: $json.audit?.objections, decision: $json._auditDecision }, remaining: $json.loop?.remaining, candidate_preview: ($json.candidate?.code||'').slice(0,300) } }}",
+        "responseData": "={{ { task_id: $json.task_id, goal: $json.goal, tool: $json.tool_factory?.tool_name || $json.candidate?.tool_name, answer: $json.outcome?.final_answer, status: $json.outcome?.status, reused: $json.outcome?.status === 'reused', audit: $json.audit, recall: $json.recall, remaining: $json.loop?.remaining } }}",
         "options": {}
       },
       "id": "wf1-respond",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1780, 300]
+      "position": [2220, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseData": "={{ { task_id: $json.state.task_id, goal: $json.state.goal, status: 'failed', audit: $json.state.audit, remaining: $json.state.loop.remaining, verdict: $json.verdict } }}",
+        "responseData": "={{ { task_id: $json.state.task_id, status: 'failed', audit: $json.state.audit, remaining: $json.state.loop.remaining } }}",
         "options": {}
       },
       "id": "wf1-respond-failed",
       "name": "Respond failed",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1780, 700]
+      "position": [2220, 700]
     }
   ],
   "connections": {
     "Webhook: POST /living-sandbox": { "main": [[{ "node": "Init state", "type": "main", "index": 0 }]] },
-    "Init state": { "main": [[{ "node": "Call Lab (WF-2 live)", "type": "main", "index": 0 }]] },
+    "Init state": { "main": [[{ "node": "Call Recall (WF-7)", "type": "main", "index": 0 }]] },
+    "Call Recall (WF-7)": { "main": [[{ "node": "Switch: reusable_tool?", "type": "main", "index": 0 }]] },
+    "Switch: reusable_tool?": {
+      "main": [
+        [{ "node": "Call Lab (WF-2 live)", "type": "main", "index": 0 }],
+        [{ "node": "Pick reusable tool", "type": "main", "index": 0 }]
+      ]
+    },
+    "Pick reusable tool": { "main": [[{ "node": "Call Tool Factory (WF-4)", "type": "main", "index": 0 }]] },
     "Call Lab (WF-2 live)": { "main": [[{ "node": "Call Audit (WF-3)", "type": "main", "index": 0 }]] },
     "Call Audit (WF-3)": { "main": [[{ "node": "Decide: deploy/rework/failed", "type": "main", "index": 0 }]] },
     "Decide: deploy/rework/failed": { "main": [[{ "node": "Switch: deploy?", "type": "main", "index": 0 }]] },
@@ -179,9 +229,9 @@
     "Call Tool Factory (WF-4)": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
     "Log failure → swarm_log": { "main": [[{ "node": "Respond failed", "type": "main", "index": 0 }]] }
   },
-  "meta": { "instanceId": "wf1-main-router-v3" },
+  "meta": { "instanceId": "wf1-v4-reuse" },
   "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "wf1" }],
-  "versionId": "wf1-v3-audit-gate",
+  "versionId": "wf1-v4-reuse",
   "active": true
 }

@@ -1,5 +1,5 @@
 {
-  "name": "wf6-memory-write — swarm_log + vector stores (WF-6)",
+  "name": "wf6-memory-write — swarm_log + Qdrant (WF-6 Sprint 4)",
   "nodes": [
     {
       "parameters": {},
@@ -11,10 +11,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-6 — log to swarm_log (E1-4)\n// Input: {task_id, workflow, gate, verdict, duration_ms} or full state\nconst inp = $input.first().json;\nconst row = {\n  task_id: inp.task_id || inp.state?.task_id || 'unknown',\n  workflow: inp.workflow || inp.gate || 'unknown',\n  gate: inp.gate || inp.workflow || 'unknown',\n  verdict: inp.verdict || inp.status || 'unknown',\n  duration_ms: inp.duration_ms || 0\n};\nreturn [{ json: row }];\n"
+        "jsCode": "// WF-6 — dual write: swarm_log + Qdrant (E7-1, E7-2)\n// Input: full state with outcome.status, candidate, test, audit\nconst inp = $input.first().json;\nconst state = inp.state || inp;\nconst isTool = state.outcome?.status === 'deployed' && state.candidate?.code;\nconst isFailure = state.outcome?.status === 'failed' || (state.loop?.remaining === 0 && !state.candidate);\nlet collection = null;\nlet payload = null;\nlet textToEmbed = '';\nif (isTool) {\n  collection = 'tool_store';\n  payload = {\n    type: 'tool',\n    tool_name: state.candidate.tool_name,\n    code: state.candidate.code,\n    description: state.candidate.description,\n    input_schema: state.candidate.input_schema,\n    fitness: 1,\n    goal: state.goal\n  };\n  textToEmbed = `${state.candidate.description} ${state.goal}`;\n} else if (isFailure) {\n  collection = 'problem_store';\n  const lastRun = state.test?.runs?.[state.test.runs.length-1] || {};\n  payload = {\n    type: 'failure',\n    goal: state.goal,\n    error: lastRun.stderr || state.outcome?.final_answer || 'unknown',\n    code_summary: (state.candidate?.code||'').slice(0,300),\n    date: new Date().toISOString()\n  };\n  textToEmbed = `${state.goal} ${payload.error}`;\n}\n// Always prepare swarm_log row too\nconst row = {\n  task_id: state.task_id || 'unknown',\n  workflow: isTool ? 'tool_store' : (isFailure ? 'problem_store' : 'swarm_log'),\n  gate: state.loop?.gate || 'unknown',\n  verdict: state.outcome?.status || 'unknown',\n  duration_ms: 0\n};\nreturn [{ json: { state, collection, payload, textToEmbed, row, isTool, isFailure } }];\n"
       },
       "id": "wf6-prepare",
-      "name": "Prepare log row",
+      "name": "Prepare dual write",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [460, 300]
@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO swarm_log (task_id, workflow, gate, verdict, duration_ms) VALUES ('{{$json.task_id}}', '{{$json.workflow}}', '{{$json.gate}}', '{{$json.verdict}}', {{$json.duration_ms}});",
+        "query": "INSERT INTO swarm_log (task_id, workflow, gate, verdict, duration_ms) VALUES ('{{$json.row.task_id}}', '{{$json.row.workflow}}', '{{$json.row.gate}}', '{{$json.row.verdict}}', {{$json.row.duration_ms}});",
         "additionalFields": {}
       },
       "id": "wf6-insert",
@@ -36,14 +36,110 @@
           "name": "Postgres n8n"
         }
       }
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.OLLAMA_URL || 'http://ollama:11434' }}/api/embed",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "input",
+              "value": "={{ $json.textToEmbed }}"
+            }
+          ]
+        },
+        "options": {
+          "bodyContentType": "json",
+          "timeout": 30000
+        }
+      },
+      "id": "wf6-embed",
+      "name": "Ollama: embed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "url": "=http://qdrant:6333/collections/{{ $json.collection }}/points",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "points",
+              "value": "=[{\"id\": \"{{$json.state.task_id}}\", \"vector\": {{$json[\"embeddings\"][0]}}, \"payload\": {{$json.payload}} }]"
+            }
+          ]
+        },
+        "options": {
+          "bodyContentType": "json",
+          "timeout": 10000
+        }
+      },
+      "id": "wf6-qdrant",
+      "name": "Qdrant: upsert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 500]
     }
   ],
   "connections": {
-    "Execute Sub-workflow Trigger": { "main": [[{ "node": "Prepare log row", "type": "main", "index": 0 }]] },
-    "Prepare log row": { "main": [[{ "node": "Postgres: INSERT swarm_log", "type": "main", "index": 0 }]] }
+    "Execute Sub-workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare dual write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare dual write": {
+      "main": [
+        [
+          {
+            "node": "Postgres: INSERT swarm_log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ollama: embed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama: embed": {
+      "main": [
+        [
+          {
+            "node": "Qdrant: upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "meta": { "instanceId": "wf6-memory-write" },
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "wf6" }],
-  "versionId": "wf6-v1"
+  "meta": {
+    "instanceId": "wf6-memory-write-v2"
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "wf6"
+    }
+  ],
+  "versionId": "wf6-v2-qdrant"
 }

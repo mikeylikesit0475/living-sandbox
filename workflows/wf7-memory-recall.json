@@ -1,0 +1,113 @@
+{
+  "name": "wf7-memory-recall — Genetic RAG recall (WF-7)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "wf7-trigger",
+      "name": "Execute Sub-workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-7 guard — validate state\nconst state = $input.first().json;\nif (!state || state.schema_version !== 1) throw new Error(`WF-7: invalid schema_version`);\nreturn [{ json: state }];\n"
+      },
+      "id": "wf7-guard",
+      "name": "Guard: validate state",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.OLLAMA_URL || 'http://ollama:11434' }}/api/embed",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "nomic-embed-text" },
+            { "name": "input", "value": "={{ $json.goal }}" }
+          ]
+        },
+        "options": { "bodyContentType": "json", "timeout": 30000 }
+      },
+      "id": "wf7-embed",
+      "name": "Ollama: embed goal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-7 query Qdrant tool_store and problem_store\nconst state = $('Guard: validate state').first().json;\nconst embedResp = $input.first().json;\nconst vector = embedResp.embeddings ? embedResp.embeddings[0] : embedResp.embedding;\nif (!vector) throw new Error('WF-7: no embedding returned');\n// Store vector for next nodes\nreturn [{ json: { state, vector } }];\n"
+      },
+      "id": "wf7-vector",
+      "name": "Extract vector",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.QDRANT_URL || 'http://qdrant:6333' }}/collections/tool_store/points/search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "vector", "value": "={{ $json.vector }}" },
+            { "name": "limit", "value": 5 },
+            { "name": "score_threshold", "value": 0.7 },
+            { "name": "with_payload", "value": true }
+          ]
+        },
+        "options": { "bodyContentType": "json", "timeout": 10000 }
+      },
+      "id": "wf7-search-tool",
+      "name": "Qdrant: search tool_store",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.QDRANT_URL || 'http://qdrant:6333' }}/collections/problem_store/points/search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "vector", "value": "={{ $('Extract vector').first().json.vector }}" },
+            { "name": "limit", "value": 3 },
+            { "name": "score_threshold", "value": 0.65 },
+            { "name": "with_payload", "value": true }
+          ]
+        },
+        "options": { "bodyContentType": "json", "timeout": 10000 }
+      },
+      "id": "wf7-search-problem",
+      "name": "Qdrant: search problem_store",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-7 assemble recall: reusable_tools (ranked by similarity × log(1+fitness)) + mutation_constraints\nconst state = $('Extract vector').first().json.state;\nconst toolHits = $('Qdrant: search tool_store').first().json.result || [];\nconst problemHits = $('Qdrant: search problem_store').first().json.result || [];\n// Rank tool hits by score * log(1+fitness)\nconst ranked = toolHits.map(h => {\n  const fitness = h.payload?.fitness || 1;\n  const rank = h.score * Math.log(1 + fitness);\n  return { ...h, _rank: rank };\n}).sort((a,b) => b._rank - a._rank);\nconst reusable_tools = ranked.slice(0,3).map(h => ({\n  tool_name: h.payload.tool_name,\n  code: h.payload.code,\n  description: h.payload.description,\n  input_schema: h.payload.input_schema,\n  score: h.score,\n  fitness: h.payload.fitness || 1,\n  rank: h._rank\n}));\n// Problem hits → mutation constraints via small model rewrite (here simple imperative transform)\nconst mutation_constraints = problemHits.map(h => {\n  const err = h.payload?.error || 'unknown error';\n  const summary = h.payload?.code_summary || h.payload?.goal || '';\n  return `A similar attempt failed because ${err}. Do not repeat pattern: ${summary.slice(0,120)}. Mutate by changing slice/parse logic.`;\n});\nconst next = JSON.parse(JSON.stringify(state));\nnext.recall = next.recall || {};\nnext.recall.reusable_tools = reusable_tools;\nnext.recall.mutation_constraints = (next.recall.mutation_constraints||[]).concat(mutation_constraints).slice(0,3);\nreturn [{ json: next }];\n"
+      },
+      "id": "wf7-assemble",
+      "name": "Assemble reuse + mutations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 500]
+    }
+  ],
+  "connections": {
+    "Execute Sub-workflow Trigger": { "main": [[{ "node": "Guard: validate state", "type": "main", "index": 0 }]] },
+    "Guard: validate state": { "main": [[{ "node": "Ollama: embed goal", "type": "main", "index": 0 }]] },
+    "Ollama: embed goal": { "main": [[{ "node": "Extract vector", "type": "main", "index": 0 }]] },
+    "Extract vector": { "main": [[{ "node": "Qdrant: search tool_store", "type": "main", "index": 0 }], [{ "node": "Qdrant: search problem_store", "type": "main", "index": 0 }]] },
+    "Qdrant: search tool_store": { "main": [[{ "node": "Assemble reuse + mutations", "type": "main", "index": 0 }]] },
+    "Qdrant: search problem_store": { "main": [[{ "node": "Assemble reuse + mutations", "type": "main", "index": 0 }]] }
+  },
+  "meta": { "instanceId": "wf7-memory-recall" },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "wf7" }],
+  "versionId": "wf7-v1"
+}
