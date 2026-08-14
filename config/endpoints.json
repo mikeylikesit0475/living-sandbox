@@ -1,0 +1,22 @@
+{
+  "qdrant": {
+    "url": "http://qdrant:6333",
+    "collections": {
+      "tool_store": "tool_store",
+      "problem_store": "problem_store"
+    },
+    "embedding_dim": 768
+  },
+  "ollama": {
+    "url": "http://ollama:11434"
+  },
+  "sandbox_runner": {
+    "url": "http://sandbox-runner:8000",
+    "timeout_s": 15,
+    "memory_mb": 256
+  },
+  "n8n": {
+    "url": "http://n8n:5678",
+    "webhook_base": "http://localhost:5678/webhook"
+  }
+}

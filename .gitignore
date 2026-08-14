@@ -1,0 +1,46 @@
+# ── n8n / stack ──────────────────────────────────────────────────
+n8n_data/
+postgres_data/
+qdrant_data/
+ollama_data/
+.n8n/
+
+# ── Python ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+.env.*
+
+# ── Node / OS ──────────────────────────────────────────────────────
+node_modules/
+.DS_Store
+Thumbs.db
+
+# ── Docker ─────────────────────────────────────────────────────────
+.docker/
+
+# ── Ollama models (large) ──────────────────────────────────────────
+ollama_models/
+
+# ── Secrets ────────────────────────────────────────────────────────
+*.key
+*.pem
+secrets/
+
+# ── Editor ─────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Eval outputs ───────────────────────────────────────────────────
+eval/reports/
+eval/.cache/
+
+# ── Scrum notes (gitignored diff noise) — keep SPRINT_NOTES.md ─────
+# scrum/ is docs, but local scratch stays out
+scrum/scratch/

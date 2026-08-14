@@ -1,0 +1,58 @@
+{
+  "_comment": "Sprint 0 spike output — winners recorded here. Updated by E1-3 spike script. All workflows read this file; never hard-code model names in node fields.",
+  "spike_status": "pending",
+  "spike_date": null,
+  "spike_notes": "Run scripts/model-spike.sh or python scripts/model-spike.py (20 structured-output calls per candidate, count % valid + p50 latency). Winners below are placeholders until spike completes.",
+  "squad_model": {
+    "name": "qwen2.5:7b-instruct",
+    "role": "Orchestrator + Lab + Audit (JSON-reliable instruct)",
+    "ollama_url": "http://ollama:11434",
+    "options": {
+      "temperature": 0.2,
+      "num_predict": 2048,
+      "think": false
+    },
+    "spike_result": null
+  },
+  "level3_model": {
+    "name": "qwen2.5:1.5b",
+    "role": "Level-3 micro-executors (small, fast — narrow JSON judgments)",
+    "ollama_url": "http://ollama:11434",
+    "options": {
+      "temperature": 0.0,
+      "num_predict": 512,
+      "think": false
+    },
+    "spike_result": null
+  },
+  "embedding_model": {
+    "name": "nomic-embed-text",
+    "role": "Qdrant embeddings (Genetic RAG)",
+    "ollama_url": "http://ollama:11434",
+    "options": {}
+  },
+  "candidates_tested": [
+    {
+      "name": "qwen2.5:7b-instruct",
+      "reason": "Strong JSON + instruction following, moderate size"
+    },
+    {
+      "name": "llama3.1:8b-instruct",
+      "reason": "Alternative JSON-reliable baseline"
+    },
+    {
+      "name": "mistral:7b-instruct",
+      "reason": "Fast, widely used for structured output"
+    }
+  ],
+  "level3_candidates": [
+    {
+      "name": "qwen2.5:1.5b",
+      "reason": "Sub-second latency target for micro-checks"
+    },
+    {
+      "name": "llama3.2:1b",
+      "reason": "Smallest viable fallback"
+    }
+  ]
+}

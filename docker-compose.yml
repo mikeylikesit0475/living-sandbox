@@ -1,0 +1,149 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: living-sandbox-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: n8n
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD: n8n_password
+      POSTGRES_NON_ROOT_USER: n8n
+      POSTGRES_NON_ROOT_PASSWORD: n8n_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n -d n8n"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    ports:
+      - "55432:5432"
+    networks:
+      - swarm
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: living-sandbox-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    healthcheck:
+      # qdrant image has no curl/wget — use bash TCP check instead
+      test: ["CMD-SHELL", "timeout 2 bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+    networks:
+      - swarm
+
+  ollama:
+    image: ollama/ollama:0.11.4
+    container_name: living-sandbox-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./Modelfile.laguna-32k:/tmp/Modelfile.laguna-32k:ro
+    ports:
+      - "55434:11434"
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - swarm
+
+  sandbox-runner:
+    build:
+      context: ./sandbox-runner
+      dockerfile: Dockerfile
+    container_name: living-sandbox-runner
+    restart: unless-stopped
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      MAX_CONCURRENT: "4"
+      DEFAULT_TIMEOUT_S: "15"
+      DEFAULT_MEMORY_MB: "256"
+      SANDBOX_IMAGE: "python:3.11-slim"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - swarm
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+
+  n8n:
+    image: n8nio/n8n:1.76.3
+    container_name: living-sandbox-n8n
+    restart: unless-stopped
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: n8n_password
+      N8N_ENCRYPTION_KEY: "living-sandbox-dev-key-change-me-32chars"
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678
+      GENERIC_TIMEZONE: UTC
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      NODE_FUNCTION_ALLOW_EXTERNAL: "@langchain/core,zod"
+      NODE_FUNCTION_ALLOW_BUILTIN: "crypto,fs,path,util"
+      N8N_LOG_LEVEL: info
+      N8N_LOG_OUTPUT: console
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_URL: http://ollama:11434
+      SANDBOX_RUNNER_URL: http://sandbox-runner:8000
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/home/node/.n8n/workflows:ro
+      - ./prompts:/prompts:ro
+      - ./config:/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5678/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      sandbox-runner:
+        condition: service_healthy
+    networks:
+      - swarm
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  ollama_data:
+  n8n_data:
+
+networks:
+  swarm:
+    driver: bridge

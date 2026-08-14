@@ -1,0 +1,44 @@
+{
+  "name": "wf0-smoke — Code Node external import check (E1-2)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "// wf0-smoke: proves NODE_FUNCTION_ALLOW_EXTERNAL=@langchain/core,zod works\n// This is the gate for E1-1 AC. If this workflow fails, the stack is misconfigured.\nconst { DynamicStructuredTool } = require('@langchain/core/tools');\nconst { z } = require('zod');\n\n// Build a trivial tool to prove imports resolve inside the n8n process\nconst tool = new DynamicStructuredTool({\n  name: 'smoke_echo',\n  description: 'Echoes input',\n  schema: z.object({ input: z.string() }),\n  func: async ({ input }) => `echo:${input}`,\n});\n\nconst result = await tool.invoke({ input: 'hello' });\nreturn [{ json: { smoke: 'pass', tool_result: result, langchain: !!DynamicStructuredTool, zod: !!z } }];\n",
+        "jsCode": "// wf0-smoke: proves NODE_FUNCTION_ALLOW_EXTERNAL=@langchain/core,zod works\n// This is the gate for E1-1 AC. If this workflow fails, the stack is misconfigured.\nconst { DynamicStructuredTool } = require('@langchain/core/tools');\nconst { z } = require('zod');\n\n// Build a trivial tool to prove imports resolve inside the n8n process\nconst tool = new DynamicStructuredTool({\n  name: 'smoke_echo',\n  description: 'Echoes input',\n  schema: z.object({ input: z.string() }),\n  func: async ({ input }) => `echo:${input}`,\n});\n\nconst result = await tool.invoke({ input: 'hello' });\nreturn [{ json: { smoke: 'pass', tool_result: result, langchain: !!DynamicStructuredTool, zod: !!z } }];\n"
+      },
+      "id": "smoke-code-node",
+      "name": "Smoke Code Node",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{}]
+        }
+      },
+      "id": "smoke-manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Smoke Code Node", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "living-sandbox-smoke"
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [{ "name": "smoke" }],
+  "triggerCount": 0,
+  "versionId": "wf0-smoke-v1"
+}
