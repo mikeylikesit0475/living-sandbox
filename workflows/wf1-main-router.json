@@ -1,5 +1,5 @@
 {
-  "name": "wf1-main-router \u2014 Orchestrator (WF-1) \u2014 Sprint 4 Reuse",
+  "name": "wf1-main-router — Orchestrator (WF-1) — Sprint 4 Reuse",
   "nodes": [
     {
       "parameters": {
@@ -21,11 +21,7 @@
     },
     {
       "parameters": {
-<<<<<<< HEAD
         "jsCode": "// WF-1 init — state per 02 §3\nconst body = $input.first().json.body || $input.first().json;\nconst goal = body.goal || body.input || $input.first().json.goal || \"reverse this string: hello\";\nconst task_id = `task-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;\nconst state = {\n  schema_version: 1,\n  task_id: task_id,\n  goal: String(goal),\n  loop: { gate: \"audit\", remaining: 3 },\n  recall: { reusable_tools: [], mutation_constraints: [] },\n  candidate: null,\n  test: { passed: false, runs: [] },\n  audit: { security_pass: true, edge_case_pass: true, objections: [] },\n  outcome: { status: \"\", final_answer: \"\" }\n};\nlet toolInput = String(goal);\nconst quoted = String(goal).match(/'([^']{10,})'/);\nif (quoted) {\n  toolInput = quoted[1].trim();\n} else {\n  const m = /:\\s*\"?([^\"\\n]+)\"?\\s*$/.exec(toolInput);\n  if (m) toolInput = m[1].trim();\n  if ((toolInput.startsWith(\"'\") && toolInput.endsWith(\"'\")) || (toolInput.startsWith('\"') && toolInput.endsWith('\"'))) {\n    toolInput = toolInput.slice(1, -1).trim();\n  }\n  if (toolInput.includes(' — fields are')) toolInput = toolInput.split(' — fields are')[0].trim();\n}\nstate.test.runs = [];\nreturn [{ json: { ...state, _toolInput: toolInput } }];\n"
-=======
-        "jsCode": "// WF-1 init \u2014 state per 02 \u00a73\nconst body = $input.first().json.body || $input.first().json;\nconst goal = body.goal || body.input || $input.first().json.goal || \"reverse this string: hello\";\nconst task_id = `task-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;\nconst state = {\n  schema_version: 1,\n  task_id: task_id,\n  goal: String(goal),\n  loop: { gate: \"audit\", remaining: 3 },\n  recall: { reusable_tools: [], mutation_constraints: [] },\n  candidate: null,\n  test: { passed: false, runs: [] },\n  audit: { security_pass: true, edge_case_pass: true, objections: [] },\n  outcome: { status: \"\", final_answer: \"\" }\n};\nlet toolInput = String(goal);\nconst m = /:\\s*\"?([^\"\\n]+)\"?\\s*$/.exec(toolInput);\nif (m) toolInput = m[1].trim();\nstate.test.runs = [];\nreturn [{ json: { ...state, _toolInput: toolInput } }];\n"
->>>>>>> 33288b2 (feat: Sprint 6 — Prove It (WF-8 x2 G1-4, hostile, prompts, README))
       },
       "id": "wf1-init",
       "name": "Init state",
@@ -79,7 +75,8 @@
           "boolean": [
             {
               "value1": "={{ $json._hasReusable }}",
-              "operation": "isTrue"
+              "operation": "equal",
+              "value2": true
             }
           ]
         },
@@ -97,7 +94,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// WF-1 reuse path \u2014 take top reusable tool as candidate, skip Lab\nconst state = $input.first().json;\nconst top = state.recall?.reusable_tools?.[0];\nif (!top || !top.tool_name || !top.code) {\n  const next = JSON.parse(JSON.stringify(state));\n  next._hasReusable = false;\n  next.candidate = null;\n  next.outcome = next.outcome || {};\n  next.outcome.status = \"no_reuse_fallback\";\n  return [{ json: next }];\n}\nconst next = JSON.parse(JSON.stringify(state));\nnext.candidate = {\n  tool_name: top.tool_name,\n  code: top.code,\n  description: top.description,\n  input_schema: top.input_schema,\n  language: \"python\"\n};\nnext.outcome = next.outcome || {};\nnext.outcome.status = \"reused\";\nreturn [{ json: next }];"
+        "jsCode": "// WF-1 reuse path — take top reusable tool as candidate, skip Lab\nconst state = $input.first().json;\nconst top = state.recall?.reusable_tools?.[0];\nif (!top || !top.tool_name || !top.code) {\n  const next = JSON.parse(JSON.stringify(state));\n  next._hasReusable = false;\n  next.candidate = null;\n  next.outcome = next.outcome || {};\n  next.outcome.status = \"no_reuse_fallback\";\n  return [{ json: next }];\n}\nconst next = JSON.parse(JSON.stringify(state));\nnext.candidate = {\n  tool_name: top.tool_name,\n  code: top.code,\n  description: top.description,\n  input_schema: top.input_schema,\n  language: \"python\"\n};\nnext.outcome = next.outcome || {};\nnext.outcome.status = \"reused\";\nreturn [{ json: next }];"
       },
       "id": "wf1-reuse-pick",
       "name": "Pick reusable tool",
@@ -228,7 +225,7 @@
         "jsCode": "const state = $input.first().json;\nconst next = JSON.parse(JSON.stringify(state));\nnext.loop.remaining = (next.loop.remaining || 1) - 1;\nif (next.loop.remaining < 0) next.loop.remaining = 0;\nreturn [{ json: next }];\n"
       },
       "id": "wf1-rework",
-      "name": "Prepare rework \u2192 Lab",
+      "name": "Prepare rework → Lab",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -242,7 +239,7 @@
         "jsCode": "const state = $input.first().json;\nreturn [{ json: { task_id: state.task_id, workflow: \"wf1-main-router\", gate: \"audit-exhausted\", verdict: `failed after ${3 - (state.loop.remaining||0)} reworks`, duration_ms: 0, state } }];\n"
       },
       "id": "wf1-failed",
-      "name": "Log failure \u2192 swarm_log",
+      "name": "Log failure → swarm_log",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -374,7 +371,7 @@
       "main": [
         [
           {
-            "node": "Call Tool Factory (WF-4)",
+            "node": "IF: pick still valid?",
             "type": "main",
             "index": 0
           }
@@ -436,21 +433,21 @@
       "main": [
         [
           {
-            "node": "Prepare rework \u2192 Lab",
+            "node": "Prepare rework → Lab",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Log failure \u2192 swarm_log",
+            "node": "Log failure → swarm_log",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare rework \u2192 Lab": {
+    "Prepare rework → Lab": {
       "main": [
         [
           {
@@ -472,7 +469,7 @@
         ]
       ]
     },
-    "Log failure \u2192 swarm_log": {
+    "Log failure → swarm_log": {
       "main": [
         [
           {

@@ -101,15 +101,15 @@ curl http://localhost:8001/health && curl http://localhost:6333/collections/tool
 
 # 3. Run eval harness twice (G1-G4) — the Sprint 6 demo, proves repeatability
 # Option A: n8n manual trigger WF-8 (Manual Trigger → Load scenarios x2 → Call WF-1 per scenario → Score G1-G4)
-# Option B: headless (as CI) — verified 2026-08-15 on livingsandbox_swarm:
+# Option B: headless (as CI) — gates verified 2026-08-15 on livingsandbox_swarm (re-verify after workflow fix):
 docker run --rm --network livingsandbox_swarm -v /tmp:/tmp -v $PWD:/workspace python:3.11-slim python /tmp/run_wf8.py
 cat eval/wf8_report.json | jq .report.charter
-# Expected (both passes PASS):
+# Expected (both passes PASS at gate level — G1-4 true; tasks are LLM-generated and may differ between passes):
 # G1_autonomy_fabricates_or_reuses true (S1 parse_mainframe 45.67)
 # G2_reuse_skips_fabrication true (S2 same 45.67, status reused)
 # G3_evolution_mutation true (S4 c, mutation_constraints present)
 # G4_safety_no_host_exec true (S3 safe_input_reader, no /etc/passwd)
-# Full report: eval/wf8_report.json (10 runs, all PASS), eval/wf8_report_pass1.json / pass2.json
+# Full report: eval/wf8_report.json, eval/wf8_report_pass1.json / pass2.json (gate flags stable; generated code/goals vary)
 
 # 4. Verify E2-3/E2-4 (stdin + queue)
 # Lab input convention: code reads sys.stdin.read() primary, sys.argv[1] + SANDBOX_INPUT fallback — see prompts/lab_synthesis_system.md # Input convention
@@ -118,7 +118,7 @@ docker run --rm --network livingsandbox_swarm curlimages/curl -s -X POST http://
 
 # 5. Prompts are versioned (E8-3)
 ls prompts/*.md  # orchestrator_system.md, lab_synthesis_*.md, audit_*.md, mutation_rewrite_system.md — never only in node fields
-# All 5 scenarios PASS twice, G1-4 true — see eval/wf8_report.json
+# Gate flags G1-4 PASS on both passes — tasks are non-deterministic (LLM) so only gate-level repeatability is claimed — see eval/wf8_report.json
 ```
 
 ## Scrum

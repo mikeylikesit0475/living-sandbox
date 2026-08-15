@@ -1,5 +1,5 @@
 {
-  "name": "wf7-memory-recall \u2014 Genetic RAG recall (WF-7)",
+  "name": "wf7-memory-recall — Genetic RAG recall (WF-7)",
   "nodes": [
     {
       "id": "wf7-trigger",
@@ -23,7 +23,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "// WF-7 guard \u2014 validate state\nconst state = $input.first().json;\nif (!state || state.schema_version !== 1) throw new Error(`WF-7: invalid schema_version`);\nreturn [{ json: state }];\n"
+        "jsCode": "// WF-7 guard — validate state\nconst state = $input.first().json;\nif (!state || state.schema_version !== 1) throw new Error(`WF-7: invalid schema_version`);\nreturn [{ json: state }];\n"
       },
       "typeVersion": 2
     },
@@ -163,13 +163,13 @@
         500
       ],
       "parameters": {
-        "jsCode": "// WF-7 assemble recall: reusable_tools (ranked by similarity \u00d7 log(1+fitness)) + mutation_constraints\n// E7-3: problem hits are rewritten by small fast model (qwen2.5:1.5b) into imperative constraints\nconst state = $('Extract vector').first().json.state;\nconst toolHits = $('Qdrant: search tool_store').first().json.result || [];\nconst problemHits = $('Qdrant: search problem_store').first().json.result || [];\nconst ranked = toolHits.map(h => {\n  const fitness = h.payload?.fitness || 1;\n  const rank = h.score * Math.log(1 + fitness);\n  return { ...h, _rank: rank };\n}).sort((a,b) => b._rank - a._rank);\nconst reusable_tools = ranked.slice(0,3).map(h => ({\n  tool_name: h.payload.tool_name,\n  code: h.payload.code,\n  description: h.payload.description,\n  input_schema: h.payload.input_schema,\n  score: h.score,\n  fitness: h.payload.fitness || 1,\n  rank: h._rank\n}));\n// For E7-3, if problemHits exist, we will call the mutation-rewrite small model in the next node\n// Here we prepare the raw failure texts for that node\nconst rawFailures = problemHits.map(h => `Goal: ${h.payload?.goal||''} Error: ${h.payload?.error||''} Summary: ${(h.payload?.code_summary||'').slice(0,200)}`);\nreturn [{ json: { state, reusable_tools, rawFailures, problemHits } }];\n"
+        "jsCode": "// WF-7 assemble recall: reusable_tools (ranked by similarity × log(1+fitness)) + mutation_constraints\n// E7-3: problem hits are rewritten by small fast model (qwen2.5:1.5b) into imperative constraints\nconst state = $('Extract vector').first().json.state;\nconst toolHits = $('Qdrant: search tool_store').first().json.result || [];\nconst problemHits = $('Qdrant: search problem_store').first().json.result || [];\nconst ranked = toolHits.map(h => {\n  const fitness = h.payload?.fitness || 1;\n  const rank = h.score * Math.log(1 + fitness);\n  return { ...h, _rank: rank };\n}).sort((a,b) => b._rank - a._rank);\nconst reusable_tools = ranked.slice(0,3).map(h => ({\n  id: h.id,\n  tool_name: h.payload.tool_name,\n  code: h.payload.code,\n  description: h.payload.description,\n  input_schema: h.payload.input_schema,\n  score: h.score,\n  fitness: h.payload.fitness || 1,\n  rank: h._rank\n}));\n// For E7-3, if problemHits exist, we will call the mutation-rewrite small model in the next node\n// Here we prepare the raw failure texts for that node\nconst rawFailures = problemHits.map(h => `Goal: ${h.payload?.goal||''} Error: ${h.payload?.error||''} Summary: ${(h.payload?.code_summary||'').slice(0,200)}`);\nreturn [{ json: { state, reusable_tools, rawFailures, problemHits } }];\n"
       },
       "typeVersion": 2
     },
     {
       "id": "wf7-mutate-llm",
-      "name": "Ollama: rewrite failures \u2192 constraints (1.5b)",
+      "name": "Ollama: rewrite failures → constraints (1.5b)",
       "type": "n8n-nodes-base.httpRequest",
       "onError": "continueRegularOutput",
       "disabled": false,
@@ -215,7 +215,7 @@
         500
       ],
       "parameters": {
-        "jsCode": "// WF-7 final assemble \u2014 merge small-model constraints\nconst prev = $('Prep reuse + raw failures').first().json;\nconst llm = $input.first().json;\nlet constraints = [];\nif (prev.rawFailures.length === 0) {\n  constraints = [];\n} else if (llm.response) {\n  // LLM returns 1-3 lines, split\n  constraints = llm.response.split('\\n').filter(l => l.trim()).slice(0,3);\n} else {\n  // Fallback to simple transform if LLM failed\n  constraints = prev.rawFailures.map(f => `A similar attempt failed: ${f.slice(0,120)}. Mutate by changing approach.`);\n}\nconst next = JSON.parse(JSON.stringify(prev.state));\nnext.recall = next.recall || {};\nnext.recall.reusable_tools = prev.reusable_tools;\nnext.recall.mutation_constraints = (next.recall.mutation_constraints||[]).concat(constraints).slice(0,3);\nreturn [{ json: next }];\n"
+        "jsCode": "// WF-7 final assemble — merge small-model constraints\nconst prev = $('Prep reuse + raw failures').first().json;\nconst llm = $input.first().json;\nlet constraints = [];\nif (prev.rawFailures.length === 0) {\n  constraints = [];\n} else if (llm.response) {\n  // LLM returns 1-3 lines, split\n  constraints = llm.response.split('\\n').filter(l => l.trim()).slice(0,3);\n} else {\n  // Fallback to simple transform if LLM failed\n  constraints = prev.rawFailures.map(f => `A similar attempt failed: ${f.slice(0,120)}. Mutate by changing approach.`);\n}\nconst next = JSON.parse(JSON.stringify(prev.state));\nnext.recall = next.recall || {};\nnext.recall.reusable_tools = prev.reusable_tools;\nnext.recall.mutation_constraints = (next.recall.mutation_constraints||[]).concat(constraints).slice(0,3);\nreturn [{ json: next }];\n"
       },
       "typeVersion": 2
     }
@@ -258,7 +258,7 @@
       "main": [
         [
           {
-            "node": "Ollama: rewrite failures \u2192 constraints (1.5b)",
+            "node": "Ollama: rewrite failures → constraints (1.5b)",
             "type": "main",
             "index": 0
           }
@@ -298,7 +298,7 @@
         ]
       ]
     },
-    "Ollama: rewrite failures \u2192 constraints (1.5b)": {
+    "Ollama: rewrite failures → constraints (1.5b)": {
       "main": [
         [
           {
