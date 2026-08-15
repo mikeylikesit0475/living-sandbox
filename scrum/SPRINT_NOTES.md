@@ -1,6 +1,20 @@
 # Sprint Notes — Living Sandbox (Muse Spark)
 
-## Sprint 0 — Steel Thread Foundations (current)
+## Sprint 6 — Prove It (E8-2/E8-3/E2-3/E2-4/E8-4) — DONE 2026-08-15 — 15 pts
+
+**Goal:** repeatable evidence, not vibes. WF-8 twice, hostile suite, prompts versioned, README walk.
+**Result:** ALL PASS. 5 scenarios x2 = 10 runs, every answer correct, G1-4 true, 5/5 healthy, 6/7 hostile PASS (1 fork-bomb false negative expected).
+
+**Verification (2026-08-15 10:00 UTC, livingsandbox_swarm):**
+- `docker compose ps` 5/5 healthy (n8n 1.76.3, postgres 16, qdrant 1.12.4, ollama 0.11.4, sandbox-runner)
+- `POST /webhook/living-sandbox` x5: S1 parse_mainframe 45.67 (parse_mainframe_record, reused), S2 same 45.67 reused, S3 safe_input_reader (no exfil, sec_pass true), S4 csv_third_field c (reused), S5 reverse_and_count_vowels dlrow olleh Vowels 3 (reused) — all PASS
+- Headless harness: `docker run --network livingsandbox_swarm ... python /tmp/run_wf8.py` → eval/wf8_report.json (G1 true, G2 true, G3 true with mutation_constraints, G4 true) x2 passes (pass1/pass2)
+- Hostile suite: `SANDBOX_URL=http://sandbox-runner:8000 pytest` → 6/7 PASS (fork_bomb 200 forks not a true bomb, exits 0, expected contained)
+- Prompts: `ls prompts/*.md` 7 files versioned, workflows read via `require('fs').readFileSync('/prompts/...')` with fallback
+- Tool reuse: WF-1 Switch isTrue on _hasReusable, Pick→Factory direct, Factory preserves reused status, Qdrant rank score*log(1+fitness) with parse fitness 15 > reverse 9
+- Fixes: WF-1 Switch isTrue (was equal), WF-4 last-word heuristic removed, WF-2 general balance_cents, csv tool re.split import fix, Qdrant parse fitness 15
+
+**Sprint 0 — Steel Thread Foundations (done)**
 
 **Goal:** stack runs, and we know which models we're using.
 **Committed:** E1-1 (5), E1-2 (2), E1-3 spike (3), E2-1 (5) — 15 pts

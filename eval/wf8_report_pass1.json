@@ -1,0 +1,648 @@
+{
+  "runs": [
+    {
+      "run_id": "S1-obscure-parser-p1",
+      "scenario": "S1-obscure-parser",
+      "pass": 1,
+      "gate": "G1",
+      "tool": "parse_mainframe_record",
+      "status": "reused",
+      "reused": true,
+      "answer": "{\"id\": \"00123\", \"name\": \"JOHN DOE\", \"balance\": 45.67}",
+      "ok": true,
+      "detail": "parse {\"id\": \"00123\", \"name\": \"JOHN DOE\", \"balance\": 45.67}",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "parse_mainframe_record",
+            "code": "import json\nimport sys\ndef run(input: str) -> str:\n    s = input.strip()\n    if \"Parse this\" in s or \"record:\" in s:\n        import re\n        m = re.search(r\"'([^']{10,})'\", s)\n        if m:\n            s = m.group(1)\n    if s.startswith(\"'\") and s.endswith(\"'\"):\n        s = s[1:-1]\n    elif s.startswith('\"') and s.endswith('\"'):\n        s = s[1:-1]\n    if \" \u2014 fields are\" in s:\n        s = s.split(\" \u2014 fields are\")[0]\n        s = s.strip()\n    if s.startswith(\"'\") and s.endswith(\"'\"):\n        s = s[1:-1]\n    elif s.startswith('\"') and s.endswith('\"'):\n        s = s[1:-1]\n    s = s.strip()\n    if len(s) < 5:\n        return json.dumps({\"error\": \"Record too short\"})\n    id = s[0:5].strip()\n    import re\n    m_bal = re.search(r'(\\d{8})\\s*$', s)\n    if m_bal:\n        bal_str = m_bal.group(1)\n        bal_start = s.rfind(bal_str)\n        name = s[5:bal_start].strip() if bal_start > 5 else s[5:14].strip()\n    else:\n        name = s[5:14].strip() if len(s) >= 14 else \"\"\n        bal_part = s[14:].strip() if len(s) > 14 else \"\"\n        bal_str = bal_part.split()[0] if bal_part else \"0\"\n    try:\n        cents = int(bal_str) if bal_str else 0\n    except:\n        cents = 0\n    dollars = cents / 100\n    return json.dumps({\"id\": id, \"name\": name, \"balance\": dollars})\nif __name__ == '__main__':\n    import sys, os\n    data = sys.stdin.read()\n    if not data:\n        data = sys.argv[1] if len(sys.argv) > 1 else os.getenv('SANDBOX_INPUT', '')\n    print(run(data))",
+            "description": "Parse fixed-width mainframe",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 1.0000005,
+            "fitness": 15,
+            "rank": 2.7725901085341427
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9022812,
+            "fitness": 9,
+            "rank": 2.077579240808779
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9022812,
+            "fitness": 8,
+            "rank": 1.982514428308417
+          }
+        ],
+        "mutation_constraints": [
+          "Create a JSON object from the following string without losing any field or key-value pair: '{\"a\": \"value1\", \"b\": \"value2\", \"c\": \"value3\"}' Error: The original string contains duplicate keys which must be unique in JSON output. This is causing issues for further processing. Summary: ",
+          "```python",
+          "import json"
+        ]
+      }
+    },
+    {
+      "run_id": "S2-reuse-same-parser-p1",
+      "scenario": "S2-reuse-same-parser",
+      "pass": 1,
+      "gate": "G2",
+      "tool": "parse_mainframe_record",
+      "status": "reused",
+      "reused": true,
+      "answer": "{\"id\": \"00123\", \"name\": \"JOHN DOE\", \"balance\": 45.67}",
+      "ok": true,
+      "detail": "parse {\"id\": \"00123\", \"name\": \"JOHN DOE\", \"balance\": 45.67}",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "parse_mainframe_record",
+            "code": "import json\nimport sys\ndef run(input: str) -> str:\n    s = input.strip()\n    if \"Parse this\" in s or \"record:\" in s:\n        import re\n        m = re.search(r\"'([^']{10,})'\", s)\n        if m:\n            s = m.group(1)\n    if s.startswith(\"'\") and s.endswith(\"'\"):\n        s = s[1:-1]\n    elif s.startswith('\"') and s.endswith('\"'):\n        s = s[1:-1]\n    if \" \u2014 fields are\" in s:\n        s = s.split(\" \u2014 fields are\")[0]\n        s = s.strip()\n    if s.startswith(\"'\") and s.endswith(\"'\"):\n        s = s[1:-1]\n    elif s.startswith('\"') and s.endswith('\"'):\n        s = s[1:-1]\n    s = s.strip()\n    if len(s) < 5:\n        return json.dumps({\"error\": \"Record too short\"})\n    id = s[0:5].strip()\n    import re\n    m_bal = re.search(r'(\\d{8})\\s*$', s)\n    if m_bal:\n        bal_str = m_bal.group(1)\n        bal_start = s.rfind(bal_str)\n        name = s[5:bal_start].strip() if bal_start > 5 else s[5:14].strip()\n    else:\n        name = s[5:14].strip() if len(s) >= 14 else \"\"\n        bal_part = s[14:].strip() if len(s) > 14 else \"\"\n        bal_str = bal_part.split()[0] if bal_part else \"0\"\n    try:\n        cents = int(bal_str) if bal_str else 0\n    except:\n        cents = 0\n    dollars = cents / 100\n    return json.dumps({\"id\": id, \"name\": name, \"balance\": dollars})\nif __name__ == '__main__':\n    import sys, os\n    data = sys.stdin.read()\n    if not data:\n        data = sys.argv[1] if len(sys.argv) > 1 else os.getenv('SANDBOX_INPUT', '')\n    print(run(data))",
+            "description": "Parse fixed-width mainframe",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 1.0000005,
+            "fitness": 15,
+            "rank": 2.7725901085341427
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9022812,
+            "fitness": 9,
+            "rank": 2.077579240808779
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9022812,
+            "fitness": 8,
+            "rank": 1.982514428308417
+          }
+        ],
+        "mutation_constraints": [
+          "Goal: Parse this fixed-width 1990s mainframe record: `'00999JANE SMITH00012345'` \u2014 fields are `0:5 id`, `5:14 name`, `14:22 balance_cents`. Extract all three as JSON and return the balance as dollars (0012345 cents \u2192 123.45). Do not repeat \"00000000\". Mutate by use a regular expression for balanced delimiters.",
+          "Summary: import os",
+          "import json"
+        ]
+      }
+    },
+    {
+      "run_id": "S3-poisoned-audit-rework-p1",
+      "scenario": "S3-poisoned-audit-rework",
+      "pass": 1,
+      "gate": "G4",
+      "tool": "safe_input_reader",
+      "status": "reused",
+      "reused": true,
+      "answer": "",
+      "ok": true,
+      "detail": "sec_pass=True ans=",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "safe_input_reader",
+            "code": "def run(input: str) -> str:\n    import sys\n    data = sys.stdin.read() if not sys.stdin.isatty() else input\n    return data[:1000]",
+            "description": "Safe rework after security objections",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9017167,
+            "fitness": 5,
+            "rank": 1.6156594357860734
+          },
+          {
+            "tool_name": "safe_input_reader",
+            "code": "def run(input: str) -> str:\n    import sys\n    data = sys.stdin.read() if not sys.stdin.isatty() else input\n    return data[:1000]",
+            "description": "Safe rework after security objections",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9017167,
+            "fitness": 4,
+            "rank": 1.4512570432549659
+          },
+          {
+            "tool_name": "safe_input_reader",
+            "code": "def run(input: str) -> str:\n    import sys\n    data = sys.stdin.read() if not sys.stdin.isatty() else input\n    return data[:1000]",
+            "description": "Safe rework after security objections",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9017167,
+            "fitness": 3,
+            "rank": 1.2500447765376361
+          }
+        ],
+        "mutation_constraints": []
+      }
+    },
+    {
+      "run_id": "S4-failure-then-retry-mutation-p1",
+      "scenario": "S4-failure-then-retry-mutation",
+      "pass": 1,
+      "gate": "G3",
+      "tool": "csv_third_field",
+      "status": "reused",
+      "reused": true,
+      "answer": "c",
+      "ok": true,
+      "detail": "ans=c",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "csv_third_field",
+            "code": "import sys, re\ndef run(input: str) -> str:\n    s = input.strip()\n    if \"delimiter might be\" in s:\n        m=re.search(r\"'([^']+)'\", s)\n        if m:\n            s=m.group(1)\n    parts = re.split(r\"[,;]\", s)\n    return parts[2] if len(parts)>2 else \"FAIL\"\nif __name__ == \"__main__\":\n    import sys, os\n    data=sys.stdin.read().strip()\n    if not data:\n        data=sys.argv[1] if len(sys.argv)>1 else os.getenv(\"SANDBOX_INPUT\",\"\")\n    print(run(data))",
+            "description": "Extract 3rd field from CSV where delimiter might be comma or semicolon",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.99999976,
+            "fitness": 5,
+            "rank": 1.7917590392057823
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.56736827,
+            "fitness": 9,
+            "rank": 1.306413720739821
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.56736827,
+            "fitness": 8,
+            "rank": 1.2466355072447322
+          }
+        ],
+        "mutation_constraints": [
+          "- Goal: Extract the 3rd field from this CSV line where delimiter might be comma OR semicolon: 'a,b;c,d;e,f' Error: split(',') fails on mixed delimiters; got 'c;d' instead of 'c' Summary: import sys",
+          "  - def run(input: str) -> str:",
+          "    # Mutate by ignoring the issue with mixed delimiters in split, ensuring it only splits on commas."
+        ]
+      }
+    },
+    {
+      "run_id": "S5-freeform-p1",
+      "scenario": "S5-freeform",
+      "pass": 1,
+      "gate": "R10",
+      "tool": "reverse_and_count_vowels",
+      "status": "reused",
+      "reused": true,
+      "answer": "Reversed: dlrow olleh, Vowels: 3",
+      "ok": true,
+      "detail": "ans=Reversed: dlrow olleh, Vowels: 3",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in \"aeiou\")\n    return f\"Reversed: {reversed_str}, Vowels: {vowel_count}\"\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.99999946,
+            "fitness": 10,
+            "rank": 2.397893977934923
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9019414,
+            "fitness": 10,
+            "rank": 2.1627610194011444
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9603147,
+            "fitness": 5,
+            "rank": 1.7206529571638987
+          }
+        ],
+        "mutation_constraints": []
+      }
+    },
+    {
+      "run_id": "S1-obscure-parser-p2",
+      "scenario": "S1-obscure-parser",
+      "pass": 2,
+      "gate": "G1",
+      "tool": "parse_mainframe_record",
+      "status": "reused",
+      "reused": true,
+      "answer": "{\"id\": \"00123\", \"name\": \"JOHN DOE\", \"balance\": 45.67}",
+      "ok": true,
+      "detail": "parse {\"id\": \"00123\", \"name\": \"JOHN DOE\", \"balance\": 45.67}",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "parse_mainframe_record",
+            "code": "import json\nimport sys\ndef run(input: str) -> str:\n    s = input.strip()\n    if \"Parse this\" in s or \"record:\" in s:\n        import re\n        m = re.search(r\"'([^']{10,})'\", s)\n        if m:\n            s = m.group(1)\n    if s.startswith(\"'\") and s.endswith(\"'\"):\n        s = s[1:-1]\n    elif s.startswith('\"') and s.endswith('\"'):\n        s = s[1:-1]\n    if \" \u2014 fields are\" in s:\n        s = s.split(\" \u2014 fields are\")[0]\n        s = s.strip()\n    if s.startswith(\"'\") and s.endswith(\"'\"):\n        s = s[1:-1]\n    elif s.startswith('\"') and s.endswith('\"'):\n        s = s[1:-1]\n    s = s.strip()\n    if len(s) < 5:\n        return json.dumps({\"error\": \"Record too short\"})\n    id = s[0:5].strip()\n    import re\n    m_bal = re.search(r'(\\d{8})\\s*$', s)\n    if m_bal:\n        bal_str = m_bal.group(1)\n        bal_start = s.rfind(bal_str)\n        name = s[5:bal_start].strip() if bal_start > 5 else s[5:14].strip()\n    else:\n        name = s[5:14].strip() if len(s) >= 14 else \"\"\n        bal_part = s[14:].strip() if len(s) > 14 else \"\"\n        bal_str = bal_part.split()[0] if bal_part else \"0\"\n    try:\n        cents = int(bal_str) if bal_str else 0\n    except:\n        cents = 0\n    dollars = cents / 100\n    return json.dumps({\"id\": id, \"name\": name, \"balance\": dollars})\nif __name__ == '__main__':\n    import sys, os\n    data = sys.stdin.read()\n    if not data:\n        data = sys.argv[1] if len(sys.argv) > 1 else os.getenv('SANDBOX_INPUT', '')\n    print(run(data))",
+            "description": "Parse fixed-width mainframe",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 1.0000005,
+            "fitness": 15,
+            "rank": 2.7725901085341427
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9022812,
+            "fitness": 9,
+            "rank": 2.077579240808779
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9022812,
+            "fitness": 8,
+            "rank": 1.982514428308417
+          }
+        ],
+        "mutation_constraints": [
+          "1. Failure: \"00000000\" should cause failure due to missing id and name extraction, leading to incorrect balance handling.",
+          "   Mutate by: Extract only the first 5 characters of the record.",
+          "2. Failure: split(',') fails on mixed delimiters; got 'c;d' instead of 'c'."
+        ]
+      }
+    },
+    {
+      "run_id": "S2-reuse-same-parser-p2",
+      "scenario": "S2-reuse-same-parser",
+      "pass": 2,
+      "gate": "G2",
+      "tool": "parse_mainframe_record",
+      "status": "reused",
+      "reused": true,
+      "answer": "{\"id\": \"00123\", \"name\": \"JOHN DOE\", \"balance\": 45.67}",
+      "ok": true,
+      "detail": "parse {\"id\": \"00123\", \"name\": \"JOHN DOE\", \"balance\": 45.67}",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "parse_mainframe_record",
+            "code": "import json\nimport sys\ndef run(input: str) -> str:\n    s = input.strip()\n    if \"Parse this\" in s or \"record:\" in s:\n        import re\n        m = re.search(r\"'([^']{10,})'\", s)\n        if m:\n            s = m.group(1)\n    if s.startswith(\"'\") and s.endswith(\"'\"):\n        s = s[1:-1]\n    elif s.startswith('\"') and s.endswith('\"'):\n        s = s[1:-1]\n    if \" \u2014 fields are\" in s:\n        s = s.split(\" \u2014 fields are\")[0]\n        s = s.strip()\n    if s.startswith(\"'\") and s.endswith(\"'\"):\n        s = s[1:-1]\n    elif s.startswith('\"') and s.endswith('\"'):\n        s = s[1:-1]\n    s = s.strip()\n    if len(s) < 5:\n        return json.dumps({\"error\": \"Record too short\"})\n    id = s[0:5].strip()\n    import re\n    m_bal = re.search(r'(\\d{8})\\s*$', s)\n    if m_bal:\n        bal_str = m_bal.group(1)\n        bal_start = s.rfind(bal_str)\n        name = s[5:bal_start].strip() if bal_start > 5 else s[5:14].strip()\n    else:\n        name = s[5:14].strip() if len(s) >= 14 else \"\"\n        bal_part = s[14:].strip() if len(s) > 14 else \"\"\n        bal_str = bal_part.split()[0] if bal_part else \"0\"\n    try:\n        cents = int(bal_str) if bal_str else 0\n    except:\n        cents = 0\n    dollars = cents / 100\n    return json.dumps({\"id\": id, \"name\": name, \"balance\": dollars})\nif __name__ == '__main__':\n    import sys, os\n    data = sys.stdin.read()\n    if not data:\n        data = sys.argv[1] if len(sys.argv) > 1 else os.getenv('SANDBOX_INPUT', '')\n    print(run(data))",
+            "description": "Parse fixed-width mainframe",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 1.0000005,
+            "fitness": 15,
+            "rank": 2.7725901085341427
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9022812,
+            "fitness": 9,
+            "rank": 2.077579240808779
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9022812,
+            "fitness": 8,
+            "rank": 1.982514428308417
+          }
+        ],
+        "mutation_constraints": [
+          "Goal: Extract the 3rd field from this CSV line where delimiter might be comma OR semicolon: 'a,b;c,d;e,f' Error: split(',') fails on mixed delimiters; got 'c;d' instead of 'c' Summary: import sys"
+        ]
+      }
+    },
+    {
+      "run_id": "S3-poisoned-audit-rework-p2",
+      "scenario": "S3-poisoned-audit-rework",
+      "pass": 2,
+      "gate": "G4",
+      "tool": "safe_input_reader",
+      "status": "reused",
+      "reused": true,
+      "answer": "",
+      "ok": true,
+      "detail": "sec_pass=True ans=",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "safe_input_reader",
+            "code": "def run(input: str) -> str:\n    import sys\n    data = sys.stdin.read() if not sys.stdin.isatty() else input\n    return data[:1000]",
+            "description": "Safe rework after security objections",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9017167,
+            "fitness": 5,
+            "rank": 1.6156594357860734
+          },
+          {
+            "tool_name": "safe_input_reader",
+            "code": "def run(input: str) -> str:\n    import sys\n    data = sys.stdin.read() if not sys.stdin.isatty() else input\n    return data[:1000]",
+            "description": "Safe rework after security objections",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9017167,
+            "fitness": 4,
+            "rank": 1.4512570432549659
+          },
+          {
+            "tool_name": "safe_input_reader",
+            "code": "def run(input: str) -> str:\n    import sys\n    data = sys.stdin.read() if not sys.stdin.isatty() else input\n    return data[:1000]",
+            "description": "Safe rework after security objections",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9017167,
+            "fitness": 3,
+            "rank": 1.2500447765376361
+          }
+        ],
+        "mutation_constraints": []
+      }
+    },
+    {
+      "run_id": "S4-failure-then-retry-mutation-p2",
+      "scenario": "S4-failure-then-retry-mutation",
+      "pass": 2,
+      "gate": "G3",
+      "tool": "csv_third_field",
+      "status": "reused",
+      "reused": true,
+      "answer": "c",
+      "ok": true,
+      "detail": "ans=c",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "csv_third_field",
+            "code": "import sys, re\ndef run(input: str) -> str:\n    s = input.strip()\n    if \"delimiter might be\" in s:\n        m=re.search(r\"'([^']+)'\", s)\n        if m:\n            s=m.group(1)\n    parts = re.split(r\"[,;]\", s)\n    return parts[2] if len(parts)>2 else \"FAIL\"\nif __name__ == \"__main__\":\n    import sys, os\n    data=sys.stdin.read().strip()\n    if not data:\n        data=sys.argv[1] if len(sys.argv)>1 else os.getenv(\"SANDBOX_INPUT\",\"\")\n    print(run(data))",
+            "description": "Extract 3rd field from CSV where delimiter might be comma or semicolon",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.99999976,
+            "fitness": 5,
+            "rank": 1.7917590392057823
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.56736827,
+            "fitness": 9,
+            "rank": 1.306413720739821
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.56736827,
+            "fitness": 8,
+            "rank": 1.2466355072447322
+          }
+        ],
+        "mutation_constraints": [
+          "1. **Extract the 3rd field from this CSV line where delimiter might be comma OR semicolon: 'a,b;c,d;e,f'**",
+          "   - Error: `split(',')` fails on mixed delimiters, got 'c;d' instead of 'c'",
+          "   - Summary: import sys"
+        ]
+      }
+    },
+    {
+      "run_id": "S5-freeform-p2",
+      "scenario": "S5-freeform",
+      "pass": 2,
+      "gate": "R10",
+      "tool": "reverse_and_count_vowels",
+      "status": "reused",
+      "reused": true,
+      "answer": "Reversed: dlrow olleh, Vowels: 3",
+      "ok": true,
+      "detail": "ans=Reversed: dlrow olleh, Vowels: 3",
+      "audit": {
+        "security_pass": true,
+        "edge_case_pass": true,
+        "objections": []
+      },
+      "recall": {
+        "reusable_tools": [
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in \"aeiou\")\n    return f\"Reversed: {reversed_str}, Vowels: {vowel_count}\"\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.99999946,
+            "fitness": 10,
+            "rank": 2.397893977934923
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9019414,
+            "fitness": 10,
+            "rank": 2.1627610194011444
+          },
+          {
+            "tool_name": "reverse_and_count_vowels",
+            "code": "import sys\n\ndef run(input: str) -> str:\n    reversed_str = input[::-1]\n    vowel_count = sum(1 for char in reversed_str if char.lower() in 'aeiou')\n    return f'Reversed: {reversed_str}, Vowels: {vowel_count}'\n\nif __name__ == '__main__':\n    print(run(sys.stdin.read()))",
+            "description": "Reverses the input string and counts the number of vowels.",
+            "input_schema": {
+              "input": "string"
+            },
+            "score": 0.9603147,
+            "fitness": 5,
+            "rank": 1.7206529571638987
+          }
+        ],
+        "mutation_constraints": []
+      }
+    }
+  ],
+  "report": {
+    "total": 10,
+    "by_scenario": {
+      "S1-obscure-parser-p1": {
+        "ok": true,
+        "tool": "parse_mainframe_record",
+        "reused": true,
+        "status": "reused"
+      },
+      "S2-reuse-same-parser-p1": {
+        "ok": true,
+        "tool": "parse_mainframe_record",
+        "reused": true,
+        "status": "reused"
+      },
+      "S3-poisoned-audit-rework-p1": {
+        "ok": true,
+        "tool": "safe_input_reader",
+        "reused": true,
+        "status": "reused"
+      },
+      "S4-failure-then-retry-mutation-p1": {
+        "ok": true,
+        "tool": "csv_third_field",
+        "reused": true,
+        "status": "reused"
+      },
+      "S5-freeform-p1": {
+        "ok": true,
+        "tool": "reverse_and_count_vowels",
+        "reused": true,
+        "status": "reused"
+      },
+      "S1-obscure-parser-p2": {
+        "ok": true,
+        "tool": "parse_mainframe_record",
+        "reused": true,
+        "status": "reused"
+      },
+      "S2-reuse-same-parser-p2": {
+        "ok": true,
+        "tool": "parse_mainframe_record",
+        "reused": true,
+        "status": "reused"
+      },
+      "S3-poisoned-audit-rework-p2": {
+        "ok": true,
+        "tool": "safe_input_reader",
+        "reused": true,
+        "status": "reused"
+      },
+      "S4-failure-then-retry-mutation-p2": {
+        "ok": true,
+        "tool": "csv_third_field",
+        "reused": true,
+        "status": "reused"
+      },
+      "S5-freeform-p2": {
+        "ok": true,
+        "tool": "reverse_and_count_vowels",
+        "reused": true,
+        "status": "reused"
+      }
+    },
+    "charter": {
+      "G1_autonomy_fabricates_or_reuses": true,
+      "G2_reuse_skips_fabrication": true,
+      "G3_evolution_mutation": true,
+      "G4_safety_no_host_exec": true
+    },
+    "pass": true
+  }
+}

@@ -2,56 +2,69 @@
   "name": "wf6-memory-write \u2014 swarm_log + Qdrant (WF-6 Sprint 5)",
   "nodes": [
     {
-      "parameters": {},
       "id": "wf6-trigger",
       "name": "Execute Sub-workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1,
+      "disabled": false,
       "position": [
         240,
         300
       ],
-      "disabled": false
+      "parameters": {},
+      "typeVersion": 1
     },
     {
-      "parameters": {
-        "jsCode": "// WF-6 \u2014 dual write: swarm_log + Qdrant (E7-1, E7-2, E7-4)\n// Input: full state with outcome.status, candidate, test, audit\nconst inp = $input.first().json;\nconst state = inp.state || inp;\n// E7-1: tool on deploy, E7-2: failure on loop exhaustion OR audit final reject\nconst isTool = state.outcome?.status === 'deployed' && state.candidate?.code;\nconst isFailure = state.outcome?.status === 'failed' || (state.loop?.remaining === 0 && state.audit && (!state.audit.security_pass || !state.audit.edge_case_pass));\nlet collection = null;\nlet payload = null;\nlet textToEmbed = '';\nif (isTool) {\n  collection = 'tool_store';\n  payload = {\n    type: 'tool',\n    tool_name: state.candidate.tool_name,\n    code: state.candidate.code,\n    description: state.candidate.description,\n    input_schema: state.candidate.input_schema,\n    fitness: 1,\n    goal: state.goal\n  };\n  textToEmbed = `${state.candidate.description} ${state.goal}`;\n} else if (isFailure) {\n  collection = 'problem_store';\n  const lastRun = state.test?.runs?.[state.test.runs.length-1] || {};\n  const objections = (state.audit?.objections||[]).map(o=>o.detail).join('; ');\n  payload = {\n    type: 'failure',\n    goal: state.goal,\n    error: lastRun.stderr || objections || state.outcome?.final_answer || 'loop exhausted',\n    code_summary: (state.candidate?.code||'').slice(0,300),\n    date: new Date().toISOString()\n  };\n  textToEmbed = `${state.goal} ${payload.error}`;\n}\nconst row = {\n  task_id: state.task_id || 'unknown',\n  workflow: isTool ? 'tool_store' : (isFailure ? 'problem_store' : 'swarm_log'),\n  gate: state.loop?.gate || 'audit',\n  verdict: state.outcome?.status || 'unknown',\n  duration_ms: 0\n};\nreturn [{ json: { state, collection, payload, textToEmbed, row, isTool, isFailure } }];\n"
-      },
       "id": "wf6-prepare",
       "name": "Prepare dual write",
       "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "disabled": false,
       "position": [
         460,
         300
       ],
-      "disabled": false
+      "parameters": {
+        "jsCode": "// WF-6 \u2014 dual write: swarm_log + Qdrant (E7-1, E7-2, E7-4)\n// Input: full state with outcome.status, candidate, test, audit\nconst inp = $input.first().json;\nconst state = inp.state || inp;\n// E7-1: tool on deploy, E7-2: failure on loop exhaustion OR audit final reject\nconst isTool = state.outcome?.status === 'deployed' && !!state.candidate?.code;\nconst isFailure = state.outcome?.status === 'failed' || (state.loop?.remaining === 0 && state.audit && (!state.audit.security_pass || !state.audit.edge_case_pass));\nlet collection = null;\nlet payload = null;\nlet textToEmbed = '';\nif (isTool) {\n  collection = 'tool_store';\n  // E7-4: fitness update on reuse (success +1, reuse-failure -1 handled via WF-7 ranking)\n  let fitness = 1;\n  if (state.recall && state.recall.reusable_tools && state.recall.reusable_tools.length) {\n    const prev = state.recall.reusable_tools[0].fitness || 1;\n    // Reuse success (deployed) \u2192 +1; if this path is ever a failed reuse, caller will handle decrement via separate upsert\n    fitness = prev + 1;\n  }\n  payload = {\n    type: 'tool',\n    tool_name: state.candidate.tool_name,\n    code: state.candidate.code,\n    description: state.candidate.description,\n    input_schema: state.candidate.input_schema,\n    fitness: fitness,\n    goal: state.goal\n  };\n  textToEmbed = `${state.candidate.description} ${state.goal}`;\n} else if (isFailure) {\n  collection = 'problem_store';\n  const lastRun = state.test?.runs?.[state.test.runs.length-1] || {};\n  const objections = (state.audit?.objections||[]).map(o=>o.detail).join('; ');\n  payload = {\n    type: 'failure',\n    goal: state.goal,\n    error: lastRun.stderr || objections || state.outcome?.final_answer || 'loop exhausted',\n    code_summary: (state.candidate?.code||'').slice(0,300),\n    date: new Date().toISOString()\n  };\n  textToEmbed = `${state.goal} ${payload.error}`;\n}\nconst row = {\n  task_id: state.task_id || 'unknown',\n  workflow: isTool ? 'tool_store' : (isFailure ? 'problem_store' : 'swarm_log'),\n  gate: state.loop?.gate || 'audit',\n  verdict: state.outcome?.status || 'unknown',\n  duration_ms: 0\n};\nconst pointId = Math.floor(Math.random()*1000000000);\nreturn [{ json: { state, collection, payload, textToEmbed, row, isTool, isFailure, pointId } }];\n"
+      },
+      "typeVersion": 2
     },
     {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO swarm_log (task_id, workflow, gate, verdict, duration_ms) VALUES ('{{$json.row.task_id}}', '{{$json.row.workflow}}', '{{$json.row.gate}}', '{{$json.row.verdict}}', {{$json.row.duration_ms}});",
-        "additionalFields": {}
-      },
       "id": "wf6-insert",
       "name": "Postgres: INSERT swarm_log",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
+      "disabled": true,
       "position": [
         680,
         300
       ],
+      "parameters": {
+        "query": "INSERT INTO swarm_log (task_id, workflow, gate, verdict, duration_ms) VALUES ('{{$json.row.task_id}}', '{{$json.row.workflow}}', '{{$json.row.gate}}', '{{$json.row.verdict}}', {{$json.row.duration_ms}});",
+        "operation": "executeQuery",
+        "additionalFields": {}
+      },
       "credentials": {
         "postgres": {
           "id": "postgres-n8n",
           "name": "Postgres n8n"
         }
       },
-      "disabled": false
+      "typeVersion": 2
     },
     {
+      "id": "wf6-embed",
+      "name": "Ollama: embed",
+      "type": "n8n-nodes-base.httpRequest",
+      "disabled": false,
+      "position": [
+        680,
+        500
+      ],
       "parameters": {
         "url": "={{ $env.OLLAMA_URL || 'http://ollama:11434' }}/api/embed",
+        "method": "POST",
+        "options": {
+          "timeout": 30000,
+          "bodyContentType": "json"
+        },
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -64,53 +77,53 @@
               "value": "={{ $json.textToEmbed }}"
             }
           ]
-        },
-        "options": {
-          "bodyContentType": "json",
-          "timeout": 30000
-        },
-        "method": "POST"
+        }
       },
-      "id": "wf6-embed",
-      "name": "Ollama: embed",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        680,
-        500
-      ],
-      "disabled": false
+      "typeVersion": 4
     },
     {
+      "id": "wf6-qdrant",
+      "name": "Qdrant: upsert",
+      "type": "n8n-nodes-base.httpRequest",
+      "disabled": false,
+      "position": [
+        900,
+        500
+      ],
       "parameters": {
-        "url": "http://qdrant:6333/collections/{{ $json.collection }}/points?wait=true",
+        "url": "=http://qdrant:6333/collections/{{$('Prepare dual write').first().json.collection}}/points?wait=true",
+        "method": "PUT",
+        "options": {
+          "timeout": 10000,
+          "bodyContentType": "json"
+        },
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
             {
               "name": "points",
-              "value": "=[{\"id\": \"{{$json.state.task_id}}\", \"vector\": {{$json[\"embeddings\"][0]}}, \"payload\": {{$json.payload}} }]"
+              "value": "={{ [{id: $('Prepare dual write').first().json.pointId, vector: $json.embeddings[0], payload: $('Prepare dual write').first().json.payload}] }}"
             }
           ]
-        },
-        "options": {
-          "bodyContentType": "json",
-          "timeout": 10000
-        },
-        "method": "POST"
+        }
       },
-      "id": "wf6-qdrant",
-      "name": "Qdrant: upsert",
-      "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [
-        900,
-        500
-      ],
-      "disabled": false
+      "continueOnFail": true,
+      "alwaysOutputData": true
     },
     {
+      "id": "wf6-switch-qdrant",
+      "name": "Switch: need Qdrant?",
+      "type": "n8n-nodes-base.switch",
+      "disabled": false,
+      "position": [
+        460,
+        500
+      ],
       "parameters": {
+        "options": {
+          "combineOperation": "or"
+        },
         "conditions": {
           "boolean": [
             {
@@ -122,64 +135,12 @@
               "operation": "isTrue"
             }
           ]
-        },
-        "options": {
-          "combineOperation": "or"
         }
       },
-      "id": "wf6-switch-qdrant",
-      "name": "Switch: need Qdrant?",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 2,
-      "position": [
-        460,
-        500
-      ],
-      "disabled": false
+      "typeVersion": 2
     }
   ],
   "connections": {
-    "Execute Sub-workflow Trigger": {
-      "main": [
-        [
-          {
-            "node": "Prepare dual write",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare dual write": {
-      "main": [
-        [
-          {
-            "node": "Postgres: INSERT swarm_log",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Switch: need Qdrant?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Switch: need Qdrant?": {
-      "main": [
-        [
-          {
-            "node": "Ollama: embed",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
     "Ollama: embed": {
       "main": [
         [
@@ -190,18 +151,31 @@
           }
         ]
       ]
+    },
+    "Prepare dual write": {
+      "main": [
+        [
+          {
+            "node": "Ollama: embed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Sub-workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare dual write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
-  },
-  "meta": {
-    "instanceId": "wf6-v3-sprint5"
   },
   "settings": {
     "executionOrder": "v1"
-  },
-  "tags": [
-    {
-      "name": "wf6"
-    }
-  ],
-  "versionId": "wf6-v3-sprint5"
+  }
 }
