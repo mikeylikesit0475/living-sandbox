@@ -19,8 +19,6 @@ Endpoints:
 
 import asyncio
 import os
-import re
-import shlex
 import subprocess
 import tempfile
 import time
@@ -123,7 +121,8 @@ async def _run_in_container(code: str, stdin_input: str, timeout_s: int, memory_
         "-i",
         SANDBOX_IMAGE,
         "sh", "-c",
-        f"echo '{code_b64}' | base64 -d > /workspace/code.py && python /workspace/code.py",
+        f"echo '{code_b64}' | base64 -d > /workspace/code.py && python /workspace/code.py \"$1\"",
+        "--",
     ]
 
     # Pass `input` as both stdin and as argv[1] (Lab convention documented in prompts/lab_system.md)
